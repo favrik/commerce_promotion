@@ -1,0 +1,9 @@
+name = Commerce Promotion
+
+description = Promotions using Balalaika
+
+package = favrik
+
+dependencies[] = commerce
+
+core = 7.x
