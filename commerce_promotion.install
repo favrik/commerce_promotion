@@ -1,0 +1,163 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+function commerce_promotion_schema() {
+  $schema['commerce_promotion'] = array(
+    'description' => 'Commerce Promotions',
+    'fields' => array(
+      'commerce_promotion_id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'name' => array(
+        'type' => 'varchar',
+        'length' => 100,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'status' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
+        'size' => 'tiny',
+        'description' => 'Whether the promotion is enabled.',
+      ),
+      'start' => array(
+        'mysql_type' => 'datetime',
+        'not null' => FALSE,
+        'default' => NULL,
+      ),
+      'end' => array(
+        'mysql_type' => 'datetime',
+        'not null' => FALSE,
+        'default' => NULL,
+      ),
+    ),
+    'primary key' => array('commerce_promotion_id'),
+  );
+
+  $schema['commerce_promotion_codes'] = array(
+    'description' => 'Promotion Codes',
+    'fields' => array(
+      'code_id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'commerce_promotion_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'code' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'usage_limit_per_code' => array(
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'usage_limit_per_user' => array(
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'primary key' => array('code_id'),
+    'foreign keys' => array(
+      'promotion_codes' => array(
+        'table' => 'commerce_promotions',
+        'columns' => array('commerce_promotion_id' => 'commerce_promotion_id'),
+      ),
+    ),
+    'unique keys' => array(
+      'code' => array('code'),
+    ),
+  );
+
+  /**
+   * The actions and rules tables are not optimal as the value/argument
+   * columns are not used by all rules or actions.
+   */
+  $schema['commerce_promotion_rules'] = array(
+    'description' => 'Commerce Promotion Rules',
+    'fields' => array(
+      'rule_id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'commerce_promotion_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'rule' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'operator' => array(
+        'type' => 'varchar',
+        'length' => 20,
+        'not null' => TRUE,
+      ),
+      'value' => array(
+        'type' => 'text',
+        'size' => 'normal',
+        'not null' => FALSE,
+        'default' => NULL,
+      ),
+    ),
+    'primary key' => array('rule_id'),
+    'foreign keys' => array(
+      'promotion_rules' => array(
+        'table' => 'commerce_promotions',
+        'columns' => array('commerce_promotion_id' => 'commerce_promotion_id'),
+      ),
+    ),
+  );
+
+  $schema['commerce_promotion_actions'] = array(
+    'description' => 'Commerce Promotion Actions',
+    'fields' => array(
+      'action_id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'commerce_promotion_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'rule' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+      'argument' => array(
+        'type' => 'text',
+        'size' => 'normal',
+        'not null' => FALSE,
+        'default' => NULL,
+      ),
+    ),
+    'primary key' => array('action_id'),
+    'foreign keys' => array(
+      'promotion_actions' => array(
+        'table' => 'commerce_promotions',
+        'columns' => array('commerce_promotion_id' => 'commerce_promotion_id'),
+      ),
+    ),
+  );
+
+  return $schema;
+}
