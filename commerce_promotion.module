@@ -1,0 +1,43 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function commerce_promotion_menu() {
+  $items = array();
+
+  $common_settings = array(
+    'access arguments' => array('administer site configuration'),
+    'file' => 'includes/commerce_promotion.admin.inc',
+  );
+
+  $items['admin/commerce/promotions'] = array(
+    'title' => 'Promotions',
+    'page callback' => 'commerce_promotion_list_page',
+  ) + $common_settings;
+
+  $items['admin/commerce/promotions/add'] = array(
+    'title' => 'Add Promotion',
+    'page callback' => 'commerce_promotion_get_form',
+    'page arguments' => array()
+  ) + $common_settings;
+
+
+  return $items;
+}
+
+function commerce_promotion_balalaika_autoloader() {
+  $loader = require './' . drupal_get_path('module', 'commerce_promotion') . '/balalaika/vendor/autoload.php';
+
+  return $loader;
+}
+
+function commerce_promotion_get_builder() {
+  $result = &drupal_static(__FUNCTION__);
+  if (!isset($result)) {
+    $builder = new \Balalaika\Builder\ArrayBuilder();
+    $result = $builder;
+  }
+
+  return $result;
+}
