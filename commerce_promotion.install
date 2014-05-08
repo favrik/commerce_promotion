@@ -69,6 +69,12 @@ function commerce_promotion_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
+      'bulk' => array(
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
     ),
     'primary key' => array('code_id'),
     'foreign keys' => array(
