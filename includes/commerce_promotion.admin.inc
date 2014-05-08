@@ -75,20 +75,6 @@ function commerce_promotion_form_submit(&$form, &$form_state) {
 }
 
 /**
- * AJAX form callback: return updated rules conditions.
- */
-function commerce_promotion_ajax_rules_refresh($form, $form_state) {
-  return $form['rules']['rules_values'];
-}
-
-/**
- * AJAX form callback: return updated rules conditions.
- */
-function commerce_promotion_ajax_actions_refresh($form, $form_state) {
-  return $form['actions']['actions_values'];
-}
-
-/**
  * Form builder for AJAX forms that can have many different field groups.
  */
 function commerce_promotion_multiple_items_form(&$form, &$form_state, $base_name, $display) {
@@ -211,6 +197,14 @@ function commerce_promotion_rules_item_form($config, $count, $form_state) {
         '#type' => 'textarea',
         '#cols' => 30,
       );
+    } else if ($config['component_name'] == 'user_is') {
+      $form['field'] = array(
+        '#type' => 'textfield',
+        '#autocomplete_path' => 'admin/commerce/promotions/user-autocomplete',
+        '#multiple' => TRUE,
+        '#size' => 40,
+        '#description' => t('Enter comma separated user names.'),
+      );
     } else {
       $form['field'] = array(
         '#type' => 'textfield',
@@ -261,5 +255,38 @@ function commerce_promotion_actions_item_form($config, $count, $form_state) {
   );
 
   return array($config['component_name'] => $form);
+}
 
+/**
+ * AJAX form callback: return updated rules conditions.
+ */
+function commerce_promotion_ajax_rules_refresh($form, $form_state) {
+  return $form['rules']['rules_values'];
+}
+
+/**
+ * AJAX form callback: return updated rules conditions.
+ */
+function commerce_promotion_ajax_actions_refresh($form, $form_state) {
+  return $form['actions']['actions_values'];
+}
+
+/**
+ * Page callback: autocomplete multiple user names.
+ */
+function commerce_promotion_user_autocomplete($string) {
+  $matches = array();
+
+  if ($string) {
+    $items = array_map('trim', explode(',', $string));
+    $last_item = array_pop($items);
+    $prefix = !empty($items) ? implode(', ', $items) . ', ' : '';
+
+    $result = db_select('users')->fields('users', array('name'))->condition('name', '%' . db_like($last_item) . '%', 'LIKE')->range(0, 10)->execute();
+    foreach ($result as $user) {
+      $matches[$prefix . $user->name] = $user->name;
+    }
+  }
+
+  drupal_json_output($matches);
 }

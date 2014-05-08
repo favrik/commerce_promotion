@@ -19,9 +19,13 @@ function commerce_promotion_menu() {
   $items['admin/commerce/promotions/add'] = array(
     'title' => 'Add Promotion',
     'page callback' => 'commerce_promotion_get_form',
-    'page arguments' => array()
+    'page arguments' => array(),
   ) + $common_settings;
 
+  $items['admin/commerce/promotions/user-autocomplete'] = array(
+    'title' => 'Multiple User Autocomplete',
+    'page callback' => 'commerce_promotion_user_autocomplete',
+  ) + $common_settings;
 
   return $items;
 }
