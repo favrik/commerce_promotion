@@ -211,3 +211,9 @@ function commerce_promotion_load_one_code($promotion_id) {
 
   return $select->execute()->fetchAssoc();
 }
+
+function commerce_promotion_delete_all() {
+  db_delete('commerce_promotion_codes')->execute();
+  db_delete('commerce_promotion_actions')->execute();
+  db_delete('commerce_promotion_rules')->execute();
+}
