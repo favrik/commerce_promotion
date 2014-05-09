@@ -349,12 +349,13 @@ function commerce_promotion_set_codes_form(&$form, &$form_state, $promotion) {
     '#description' => t('For example: "ABC". Codes generated will follow the format "ABCXXXXX", where X is the auto-generated part of the code.'),
   );
 
+  $lengths = range(8, 15);
   $codes['bulk_length'] = array(
     '#type' => 'select',
     '#title' => t('Code Length'),
-    '#options' => range(8, 15),
+    '#options' => array_combine($lengths, $lengths),
     '#default_value' => $promotion['bulk_length'],
-    '#description' => t('Includes the code prefix length.'),
+    '#description' => t('The number of characters selected here will be appended to the code prefix entered above.'),
     '#states' => $bulk_states,
   );
 
@@ -422,6 +423,7 @@ function commerce_promotion_set_date_range_form(&$form, &$form_state, $promotion
  * Form validate callback: validate a promotion data structure.
  */
 function commerce_promotion_form_validate($form, &$form_state) {
+  $values = $form_state['values'];
 }
 
 /**
@@ -430,7 +432,67 @@ function commerce_promotion_form_validate($form, &$form_state) {
 function commerce_promotion_form_submit(&$form, &$form_state) {
   $values = $form_state['values'];
 
-  commerce_promotion_save($values);
+  $promotion_id = commerce_promotion_save($values);
+
+  if (isset($values['code']) && $values['code'] && $values['code_type'] == 'bulk') {
+    // Batch create promotion codes.
+
+    $params = array(
+      'commerce_promotion_id' => $promotion_id,
+      'number' => $values['bulk_number'],
+      'prefix' => $values['bulk_prefix'],
+      'length' => $values['bulk_length'],
+      'usage_limit_per_code' => $values['usage_limit_per_code'],
+      'usage_limit_per_user' => $values['usage_limit_per_user'],
+      'seed' => md5(uniqid()),
+    );
+
+    $batch = array(
+      'operations' => array(),
+      'finished' => 'commerce_promotion_batch_create_finished_codes',
+      'file' => drupal_get_path('module', 'commerce_promotion') . '/includes/commerce_promotion.admin.inc',
+      'progress_message' => t('Processing ...')
+    );
+
+    for ($i = 0; $i < $params['number']; $i++) {
+      $params['id'] = $i;
+      $batch['operations'][] = array('commerce_promotion_batch_create_codes', array($params));
+    }
+
+    batch_set($batch);
+  }
+}
+
+function commerce_promotion_batch_create_codes($params, &$context) {
+  $context['message'] = t('Creating code @n of @max', array('@n' => $progress, '@max' => $max));
+
+  $code = array(
+    'commerce_promotion_id' => $params['commerce_promotion_id'],
+    'code' => commerce_promotion_generate_code($params),
+    'usage_limit_per_code' => $params['usage_limit_per_code'],
+    'usage_limit_per_user' => $params['usage_limit_per_user'],
+    'bulk' => 1,
+  );
+
+  commerce_promotion_save_code($code);
+
+  $context['results'][] = $code['code'];
+}
+
+function commerce_promotion_batch_create_finished_codes($success, $results, $operations) {
+  if ($success) {
+    // Display success message.
+    $message = t('Created @n codes.', array('@n' => count($results)));
+    drupal_set_message($message);
+  }
+  else {
+    // Report the last error.
+    $error_operation = reset($operations);
+    $message = t('An error occurred while processing %error_operation with arguments: @arguments', 
+      array('%error_operation' => $error_operation[0], '@arguments' => print_r($error_operation[1], TRUE)));
+
+    drupal_set_message($message, 'error');
+  }
 }
 
 /**
