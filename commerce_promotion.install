@@ -144,7 +144,7 @@ function commerce_promotion_schema() {
         'unsigned' => TRUE,
         'not null' => TRUE,
       ),
-      'rule' => array(
+      'action' => array(
         'type' => 'varchar',
         'length' => 255,
         'not null' => TRUE,
