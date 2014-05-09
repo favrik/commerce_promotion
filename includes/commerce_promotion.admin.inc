@@ -519,7 +519,7 @@ function commerce_promotion_list_page() {
     );
   }
 
-  return theme('table', array('header' => $header, 'rows' => $rows));
+  return theme('table', array('header' => $header, 'rows' => $rows)) . theme('pager');
 }
 
 function commerce_promotion_active_when_text($promotion) {
