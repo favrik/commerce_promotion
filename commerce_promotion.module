@@ -30,6 +30,22 @@ function commerce_promotion_menu() {
   return $items;
 }
 
+/**
+ * Implements hook_menu_local_tasks_alter().
+ */
+function commerce_promotion_menu_local_tasks_alter(&$data, $router_item, $root_path) {
+  // Add action link 'admin/commerce/products/add' on 'admin/commerce/products'.
+  if ($root_path == 'admin/commerce/promotions') {
+    $item = menu_get_item('admin/commerce/promotions/add');
+    if ($item['access']) {
+      $data['actions']['output'][] = array(
+        '#theme' => 'menu_local_action',
+        '#link' => $item,
+      );
+    }
+  }
+}
+
 function commerce_promotion_balalaika_autoloader() {
   $loader = require './' . drupal_get_path('module', 'commerce_promotion') . '/balalaika/vendor/autoload.php';
 
@@ -92,9 +108,11 @@ function commerce_promotion_save(array $values) {
     commerce_promotion_save_actions($promotion_id, $values['actions_values']);
   }
 
-  if (isset($values['code']) && $values['code']) {
-    commerce_promotion_save_codes($promotion_id, $values);
+  if (isset($values['code']) && $values['code'] && $values['code_type'] == 'simple') {
+    commerce_promotion_save_simple_code($promotion_id, $values);
   }
+
+  return $promotion_id;
 }
 
 function commerce_promotion_save_rules($promotion_id, $rules) {
@@ -140,10 +158,9 @@ function commerce_promotion_value_parser($rule_name, $value) {
   return $value;
 }
 
-function commerce_promotion_save_codes($promotion_id, $values) {
+function commerce_promotion_save_simple_code($promotion_id, $values) {
   db_delete('commerce_promotion_codes')->condition('commerce_promotion_id', $promotion_id)->execute();
-
-  $row = array(
+  $code = array(
     'commerce_promotion_id' => $promotion_id,
     'code' => $values['simple_code'],
     'usage_limit_per_code' => $values['usage_limit_per_code'],
@@ -151,5 +168,37 @@ function commerce_promotion_save_codes($promotion_id, $values) {
     'bulk' => 0,
   );
 
-  db_insert('commerce_promotion_codes')->fields($row)->execute();
+  commerce_promotion_save_code($code);
+}
+
+function commerce_promotion_save_code($code) {
+  db_insert('commerce_promotion_codes')->fields($code)->execute();
+}
+
+/**
+ * Generate a promotion code from parameters.
+ */
+function commerce_promotion_generate_code($params) {
+  $id = str_pad(dechex($params['id']), strlen(dechex($params['number'])), '0', STR_PAD_LEFT);
+  $length = strlen($params['prefix']) + $params['length'];
+  return strtoupper(substr($params['prefix'] . $id . md5($params['seed'] . $id), 0, $length));
+}
+
+function commerce_promotion_get_all() {
+  $select = db_select('commerce_promotion', 'p')->extend('PagerDefault');
+  $select
+    ->fields('p')
+    ->limit(25)
+    ->orderBy('commerce_promotion_id', 'ASC');
+
+  return $select->execute();
+}
+
+function commerce_promotion_load_one_code($promotion_id) {
+  $select = db_select('commerce_promotion_codes', 'c')->extend('PagerDefault');
+  $select->fields('c')
+         ->condition('commerce_promotion_id', $promotion_id, '=');
+  $select->limit(1);
+
+  return $select->execute()->fetchAssoc();
 }

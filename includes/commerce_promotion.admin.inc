@@ -433,3 +433,73 @@ function commerce_promotion_form_submit(&$form, &$form_state) {
   commerce_promotion_save($values);
 }
 
+/**
+ * Page callback: list promotions.
+ */
+function commerce_promotion_list_page() {
+  $promotions = commerce_promotion_get_all();
+  $header = array(
+    'Promotion Id', 'Promotion Name', 'Active when', 'Status', 'Operations'
+  );
+
+  $rows = array();
+  $promotion_ids = array();
+  foreach ($promotions as $promotion) {
+    $promotion_ids[] = $promotion->commerce_promotion_id;
+
+    $rows[] = array(
+      $promotion->commerce_promotion_id,
+      $promotion->name,
+      commerce_promotion_active_when_text($promotion),
+      $promotion->status ? t('Enabled') : t('Disabled'),
+      l('Edit', 'admin/commerce/promotions/edit/' . $promotion->commerce_promotion_id) . ' | '
+      . l('Delete', 'admin/commerce/promotions/delete/' . $promotion->commerce_promotion_id)
+    );
+  }
+
+  return theme('table', array('header' => $header, 'rows' => $rows));
+}
+
+function commerce_promotion_active_when_text($promotion) {
+  $items = array();
+  $code = commerce_promotion_load_one_code($promotion->commerce_promotion_id);
+  if ($code) {
+    if ($code['bulk']) {
+      $text = 'A Bulk Promotion Code is entered';
+    } else {
+      $text = 'Promotion Code <strong>' . $code['code'] . '</strong> is entered';
+    }
+    $items[] = $text;
+  }
+
+  $dates = commerce_promotion_date_range($promotion);
+  if ($dates) {
+    $items[] = $dates;
+  }
+
+  return theme('item_list', array('items' => $items));
+}
+
+function commerce_promotion_date_range($promotion) {
+  if ($promotion->start) {
+    $start = format_date(strtotime($promotion->start), 'custom', 'F jS, Y g:ia');
+  }
+
+  if ($promotion->end) {
+    $end = format_date(strtotime($promotion->end), 'custom', 'F jS, Y g:ia');
+  }
+
+  if ($promotion->start && $promotion->end) {
+    return 'Date is from ' . $start . ' to ' . $end;
+  }
+
+  if ($promotion->start) {
+    return 'After ' . $start;
+  }
+
+  if ($promotion->end) {
+    return 'Before ' . $end;
+  }
+
+  return FALSE;
+}
