@@ -24,9 +24,10 @@ function commerce_promotion_form($form, &$form_state, $promotion) {
 
   $form['name'] = array(
     '#type' => 'textfield',
-    '#title' => t('Promotion Name') . ' <span class="form-required" title="This field is required.">*</span>',
+    '#title' => t('Promotion Name'),
     '#description' => t('Shown to customers.'),
     '#default_value' => $promotion['name'],
+    '#required' => TRUE,
   );
 
   $form['status'] = array(
@@ -93,6 +94,9 @@ function commerce_promotion_multiple_items_form(&$form, &$form_state, $base_name
       'wrapper' => 'promotion-' . $base_name,
     ),
     '#suffix' => '</div>',
+    '#limit_validation_errors' => array(
+      array($base_name . '_options')
+    ),
   );
 
   $form[$base_name][$base_name . '_values'] = array(
@@ -169,6 +173,9 @@ function commerce_promotion_get_component_form($base_name, $form_state) {
   return $form_callback($component_config, $count, $form_state);
 }
 
+/**
+ * FIXME refactor item forms into one set of code to be more DRY.
+ */
 function commerce_promotion_rules_item_form($config, $count, $form_state) {
   $form['operator'] = array(
     '#type' => 'select',
@@ -209,6 +216,9 @@ function commerce_promotion_rules_item_form($config, $count, $form_state) {
       'callback' => 'commerce_promotion_ajax_rules_refresh',
       'wrapper' => 'promotion-rules',
     ),
+    '#limit_validation_errors' => array(
+      array('rules_options')
+    ),
   );
 
   return array($config['component_name'] => $form);
@@ -237,6 +247,9 @@ function commerce_promotion_actions_item_form($config, $count, $form_state) {
     '#ajax' => array(
       'callback' => 'commerce_promotion_ajax_actions_refresh',
       'wrapper' => 'promotion-actions',
+    ),
+    '#limit_validation_errors' => array(
+      array('actions_options')
     ),
   );
 
@@ -392,7 +405,7 @@ function commerce_promotion_set_date_range_form(&$form, &$form_state, $promotion
     '#states' => $states,
     '#date_year_range' => '-0:+10',
     '#date_format' => 'Y-m-d H:i',
-    '#default_value' => date('Y-m-d H:i'),
+    '#default_value' => $promotion['start'],
   );
 
   $dates['end'] = array(
@@ -401,21 +414,18 @@ function commerce_promotion_set_date_range_form(&$form, &$form_state, $promotion
     '#states' => $states,
     '#date_year_range' => '-0:+10',
     '#date_format' => 'Y-m-d H:i',
-    '#default_value' => date('Y-m-d H:i'),
+    '#default_value' => $promotion['end'],
   );
 }
 
 /**
- * Form validate callback.
+ * Form validate callback: validate a promotion data structure.
  */
 function commerce_promotion_form_validate($form, &$form_state) {
-  if (empty($form_state['values']['name'])) {
-    form_set_error('name', t('Please enter a promotion name'));
-  }
 }
 
 /**
- * Form submit callback.
+ * Form submit callback: create or edit a promotion.
  */
 function commerce_promotion_form_submit(&$form, &$form_state) {
   $values = $form_state['values'];
