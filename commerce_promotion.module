@@ -47,12 +47,18 @@ function commerce_promotion_menu_local_tasks_alter(&$data, $router_item, $root_p
   }
 }
 
+/**
+ * Load balalaika.
+ */
 function commerce_promotion_balalaika_autoloader() {
   $loader = require './' . drupal_get_path('module', 'commerce_promotion') . '/balalaika/vendor/autoload.php';
 
   return $loader;
 }
 
+/**
+ * Get promotion builder.
+ */
 function commerce_promotion_get_builder() {
   $result = &drupal_static(__FUNCTION__);
   if (!isset($result)) {
@@ -83,6 +89,9 @@ function commerce_promotion_defaults(array $values = array()) {
   return $values;
 }
 
+/**
+ * Save a promotion from form values.
+ */
 function commerce_promotion_save(array $values) {
   $values = commerce_promotion_defaults($values);
 
@@ -116,6 +125,9 @@ function commerce_promotion_save(array $values) {
   return $promotion_id;
 }
 
+/**
+ * Save/Update rules using delete -> re-insert.
+ */
 function commerce_promotion_save_rules($promotion_id, $rules) {
   db_delete('commerce_promotion_rules')->condition('commerce_promotion_id', $promotion_id)->execute();
 
@@ -137,6 +149,9 @@ function commerce_promotion_save_rule($rule) {
   db_insert('commerce_promotion_rules')->fields($rule)->execute();
 }
 
+/**
+ * Save/Update actions using delete -> re-insert.
+ */
 function commerce_promotion_save_actions($promotion_id, $actions) {
   db_delete('commerce_promotion_actions')->condition('commerce_promotion_id', $promotion_id)->execute();
 
@@ -157,6 +172,9 @@ function commerce_promotion_save_action($action) {
   db_insert('commerce_promotion_actions')->fields($action)->execute();
 }
 
+/**
+ * Returns a formatted value for an action or rule according to its preference.
+ */
 function commerce_promotion_value_parser($rule_name, $value) {
   switch ($rule_name) {
     case 'order_total':
@@ -167,6 +185,9 @@ function commerce_promotion_value_parser($rule_name, $value) {
   return $value;
 }
 
+/**
+ * Save simple promotion code (non-bulk).
+ */
 function commerce_promotion_save_simple_code($promotion_id, $values) {
   db_delete('commerce_promotion_codes')->condition('commerce_promotion_id', $promotion_id)->execute();
   $code = array(
