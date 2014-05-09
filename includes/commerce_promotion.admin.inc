@@ -6,9 +6,8 @@ commerce_promotion_balalaika_autoloader();
  * Page callback: build a form for promotion.
  */
 function commerce_promotion_get_form($promotion_id = NULL) {
-//  $repository = new DrupalPromotionRepository();
-  //$promotion = $repository->get($promotion_id);
-  $form_state['build_info']['args'] = array(array());
+  $promotion = $promotion_id ? 'something' : commerce_promotion_defaults();
+  $form_state['build_info']['args'] = array($promotion);
 
   return drupal_build_form('commerce_promotion_form', $form_state);
 }
@@ -17,18 +16,24 @@ function commerce_promotion_get_form($promotion_id = NULL) {
  * Form callback: create or edit a promotion.
  */
 function commerce_promotion_form($form, &$form_state, $promotion) {
+  $form_state['promotion'] = $promotion;
+
   // This field is required but let's validate it manually so that
   // AJAX interactions are less restrictive (#limit_validation_errors, etc.).
+  $form['#attributes'] = array('class' => array('commerce-promotion-form'));
+
   $form['name'] = array(
     '#type' => 'textfield',
     '#title' => t('Promotion Name') . ' <span class="form-required" title="This field is required.">*</span>',
     '#description' => t('Shown to customers.'),
+    '#default_value' => $promotion['name'],
   );
 
   $form['status'] = array(
     '#type' => 'radios',
     '#title' => t('Status'),
-    '#options' => array(0 => t('Disabled'), 1 => t('Enabled')),
+    '#options' => array(1 => t('Enabled'), 0 => t('Disabled')),
+    '#default_value' => $promotion['status'],
   );
 
   $form['activators'] = array(
@@ -37,24 +42,9 @@ function commerce_promotion_form($form, &$form_state, $promotion) {
     '#title' => t('Activate when:'),
   );
 
-  $form['activators']['code'] = array(
-    '#type' => 'checkbox',
-    '#title' => t('Has Promotion Code'),
-    '#size' => 20,
-    '#tree' => TRUE,
-  );
+  commerce_promotion_set_codes_form($form, $form_state, $promotion);
 
-  $codes = &$form['activators']['code'];
-
-  $codes['code_type'] = array(
-    '#type' => 'fieldset',
-    '#title' => 'yueah',
-  );
-  $codes['code_type']['options'] = array(
-    '#type' => 'radios',
-    '#options' => array('simple' => 'Code', 'bulk' => 'Bulk Code'),
-  );
-
+  commerce_promotion_set_date_range_form($form, $form_state, $promotion);
 
   commerce_promotion_multiple_items_form($form, $form_state, 'rules',
     array('title' => 'Conditions required to apply it', 'add_button' => 'Add Condition'));
@@ -68,10 +58,6 @@ function commerce_promotion_form($form, &$form_state, $promotion) {
   );
 
   return $form;
-}
-
-function commerce_promotion_form_submit(&$form, &$form_state) {
-  dpm($form_state);
 }
 
 /**
@@ -157,7 +143,7 @@ function commerce_promotion_multiple_items_form(&$form, &$form_state, $base_name
 }
 
 /**
- * Return available rules as options for a select field.
+ * Return available rules/actions as options for a select field.
  */
 function commerce_promotion_get_component_options($config) {
   $options = array();
@@ -233,7 +219,7 @@ function commerce_promotion_actions_item_form($config, $count, $form_state) {
     $form['field'] = array(
       '#type' => 'textfield',
       '#field_prefix' => $config['name'],
-      '#field_suffix' => 'USD',
+      '#field_suffix' => $config['component_name'] == 'discount_percentage' ? '%' : 'USD',
       '#size' => 5,
     );
   } else {
@@ -289,4 +275,132 @@ function commerce_promotion_user_autocomplete($string) {
   }
 
   drupal_json_output($matches);
+}
+
+/**
+ * Build the promotion code form.
+ */
+function commerce_promotion_set_codes_form(&$form, &$form_state, $promotion) {
+  $form['activators']['code'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Has Promotion Code'),
+    '#size' => 20,
+  );
+
+  $form['activators']['code_options'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Promotion Code'),
+    '#states' => array(
+      'visible' => array(
+        'input[name="code"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  $codes = &$form['activators']['code_options'];
+
+  $codes['code_type'] = array(
+    '#type' => 'radios',
+    '#prefix' => '<div class="container-inline inline-radios">',
+    '#suffix' => '</div><br />',
+    '#options' => array('simple' => 'Code', 'bulk' => 'Bulk Code'),
+    '#default_value' => $promotion['single_code'],
+  );
+
+  $codes['simple_code'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Code'),
+    '#size' => 20,
+    '#states' => array(
+      'visible' => array('input[name="code_type"]' => array('value' => 'simple'))
+    ),
+  );
+
+  $bulk_states = array(
+    'visible' => array('input[name="code_type"]' => array('value' => 'bulk'))
+  );
+
+  $codes['bulk_number'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Number of Codes to generate'),
+    '#size' => 5,
+    '#states' => $bulk_states,
+    '#description' => t('Bulk Promotion Codes cannot be edited. They can be regenerated as long as no code has been applied.'),
+  );
+
+  $codes['bulk_prefix'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Code Prefix'),
+    '#size' => 10,
+    '#states' => $bulk_states,
+    '#description' => t('For example: "ABC". Codes generated will follow the format "ABCXXXXX", where X is the auto-generated part of the code.'),
+  );
+
+  $codes['bulk_length'] = array(
+    '#type' => 'select',
+    '#title' => t('Code Length'),
+    '#options' => range(8, 15),
+    '#default_value' => $promotion['bulk_length'],
+    '#description' => t('Includes the code prefix length.'),
+    '#states' => $bulk_states,
+  );
+
+  $codes['usage_limit_per_code'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Usage limit per code'),
+    '#size' => 5,
+    '#description' => t('How many times the code can be applied to an order. 0 for unlimited.'),
+    '#default_value' => $promotion['usage_limit_per_code'],
+  );
+
+  $codes['usage_limit_per_user'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Usage limit per user'),
+    '#size' => 5,
+    '#description' => t('How many times the code can be applied by the Order owner. 0 for unlimited.'),
+    '#default_value' => $promotion['usage_limit_per_user'],
+  );
+}
+
+/**
+ * Build the date range form.
+ */
+function commerce_promotion_set_date_range_form(&$form, &$form_state, $promotion) {
+  $form['activators']['date'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Is within date range'),
+    '#size' => 20,
+  );
+
+  $states = array(
+    'visible' => array(
+      'input[name="date"]' => array('checked' => TRUE),
+    ),
+  );
+
+  $form['activators']['date_range'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Date Range'),
+    '#states' => $states,
+  );
+
+  $dates = &$form['activators']['date_range'];
+
+  $dates['start'] = array(
+    '#type' => 'date_popup',
+    '#title' => t('Start Date'),
+    '#states' => $states,
+    '#date_year_range' => '-0:+10',
+    '#date_format' => 'Y-m-d H:i',
+    '#default_value' => date('Y-m-d H:i'),
+  );
+
+  $dates['end'] = array(
+    '#type' => 'date_popup',
+    '#title' => t('End Date'),
+    '#states' => $states,
+    '#date_year_range' => '-0:+10',
+    '#date_format' => 'Y-m-d H:i',
+    '#default_value' => date('Y-m-d H:i'),
+  );
 }
