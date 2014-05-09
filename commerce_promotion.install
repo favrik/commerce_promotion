@@ -86,6 +86,9 @@ function commerce_promotion_schema() {
     'unique keys' => array(
       'code' => array('code'),
     ),
+    'indexes' => array(
+      'promotion_id' => array('commerce_promotion_id'),
+    ),
   );
 
   /**
@@ -129,6 +132,9 @@ function commerce_promotion_schema() {
         'columns' => array('commerce_promotion_id' => 'commerce_promotion_id'),
       ),
     ),
+    'indexes' => array(
+      'promotion_id' => array('commerce_promotion_id'),
+    ),
   );
 
   $schema['commerce_promotion_actions'] = array(
@@ -162,6 +168,9 @@ function commerce_promotion_schema() {
         'table' => 'commerce_promotions',
         'columns' => array('commerce_promotion_id' => 'commerce_promotion_id'),
       ),
+    ),
+    'indexes' => array(
+      'promotion_id' => array('commerce_promotion_id'),
     ),
   );
 
