@@ -128,8 +128,12 @@ function commerce_promotion_save_rules($promotion_id, $rules) {
     $row['operator'] = $config['operator'];
     $row['value'] = isset($config['field']) ? commerce_promotion_value_parser($rule_name, $config['field']) : NULL;
 
-    db_insert('commerce_promotion_rules')->fields($row)->execute();
+    commerce_promotion_save_rule($row);
   }
+}
+
+function commerce_promotion_save_rule($rule) {
+  db_insert('commerce_promotion_rules')->fields($rule)->execute();
 }
 
 function commerce_promotion_save_actions($promotion_id, $actions) {
@@ -144,8 +148,12 @@ function commerce_promotion_save_actions($promotion_id, $actions) {
     $row['action'] = $action_name;
     $row['argument'] = isset($config['field']) ? commerce_promotion_value_parser($action_name, $config['field']) : NULL;
 
-    db_insert('commerce_promotion_actions')->fields($row)->execute();
+    commerce_promotion_save_action($row);
   }
+}
+
+function commerce_promotion_save_action($action) {
+  db_insert('commerce_promotion_actions')->fields($action)->execute();
 }
 
 function commerce_promotion_value_parser($rule_name, $value) {
