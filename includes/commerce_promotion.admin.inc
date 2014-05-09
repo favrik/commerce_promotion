@@ -464,7 +464,7 @@ function commerce_promotion_form_submit(&$form, &$form_state) {
 }
 
 function commerce_promotion_batch_create_codes($params, &$context) {
-  $context['message'] = t('Creating code @n of @max', array('@n' => $progress, '@max' => $max));
+  $context['message'] = t('Creating code @n of @max', array('@n' => $params['id'] + 1, '@max' => $params['number']));
 
   $code = array(
     'commerce_promotion_id' => $params['commerce_promotion_id'],
