@@ -404,3 +404,22 @@ function commerce_promotion_set_date_range_form(&$form, &$form_state, $promotion
     '#default_value' => date('Y-m-d H:i'),
   );
 }
+
+/**
+ * Form validate callback.
+ */
+function commerce_promotion_form_validate($form, &$form_state) {
+  if (empty($form_state['values']['name'])) {
+    form_set_error('name', t('Please enter a promotion name'));
+  }
+}
+
+/**
+ * Form submit callback.
+ */
+function commerce_promotion_form_submit(&$form, &$form_state) {
+  $values = $form_state['values'];
+
+  commerce_promotion_save($values);
+}
+

@@ -45,3 +45,111 @@ function commerce_promotion_get_builder() {
 
   return $result;
 }
+
+/**
+ * Create a promotion data structure populated with passed $values.
+ */
+function commerce_promotion_defaults(array $values = array()) {
+  $values += array(
+    'commerce_promotion_id' => NULL,
+    'name' => '',
+    'status' => TRUE,
+    'start' => NULL,
+    'end' => NULL,
+    'usage_limit_per_code' => 0,
+    'usage_limit_per_user' => 1,
+    // This is metadata
+    'single_code' => 'simple',
+    'bulk_length' => 8,
+  );
+
+  return $values;
+}
+
+function commerce_promotion_save(array $values) {
+  $values = commerce_promotion_defaults($values);
+
+  $primary_key = is_null($values['commerce_promotion_id']) ? array() : 'commerce_promotion_id';
+  $promotion_keys = array('commerce_promotion_id', 'name', 'status');
+
+  if (isset($values['date']) && $values['date']) {
+    array_push($promotion_keys, 'start', 'end');
+  }
+
+  $promotion = array();
+  foreach ($promotion_keys as $key) {
+    $promotion[$key] = $values[$key];
+  }
+  drupal_write_record('commerce_promotion', $promotion, $primary_key);
+
+  $promotion_id = $promotion['commerce_promotion_id'];
+
+  if (!empty($values['rules_values'])) {
+    commerce_promotion_save_rules($promotion_id, $values['rules_values']);
+  }
+
+  if (!empty($values['actions_values'])) {
+    commerce_promotion_save_actions($promotion_id, $values['actions_values']);
+  }
+
+  if (isset($values['code']) && $values['code']) {
+    commerce_promotion_save_codes($promotion_id, $values);
+  }
+}
+
+function commerce_promotion_save_rules($promotion_id, $rules) {
+  db_delete('commerce_promotion_rules')->condition('commerce_promotion_id', $promotion_id)->execute();
+
+  $row['commerce_promotion_id'] = $promotion_id;
+
+  foreach ($rules as $rule) {
+    $rule_name = key($rule);
+    $config = array_shift($rule);
+
+    $row['rule'] = $rule_name;
+    $row['operator'] = $config['operator'];
+    $row['value'] = isset($config['field']) ? commerce_promotion_value_parser($rule_name, $config['field']) : NULL;
+
+    db_insert('commerce_promotion_rules')->fields($row)->execute();
+  }
+}
+
+function commerce_promotion_save_actions($promotion_id, $actions) {
+  db_delete('commerce_promotion_actions')->condition('commerce_promotion_id', $promotion_id)->execute();
+
+  $row['commerce_promotion_id'] = $promotion_id;
+
+  foreach ($actions as $action) {
+    $action_name = key($action);
+    $config = array_shift($action);
+
+    $row['action'] = $action_name;
+    $row['argument'] = isset($config['field']) ? commerce_promotion_value_parser($action_name, $config['field']) : NULL;
+
+    db_insert('commerce_promotion_actions')->fields($row)->execute();
+  }
+}
+
+function commerce_promotion_value_parser($rule_name, $value) {
+  switch ($rule_name) {
+    case 'order_total':
+    case 'discount_fixed_amount':
+      return intval($value) * 100;
+  }
+
+  return $value;
+}
+
+function commerce_promotion_save_codes($promotion_id, $values) {
+  db_delete('commerce_promotion_codes')->condition('commerce_promotion_id', $promotion_id)->execute();
+
+  $row = array(
+    'commerce_promotion_id' => $promotion_id,
+    'code' => $values['simple_code'],
+    'usage_limit_per_code' => $values['usage_limit_per_code'],
+    'usage_limit_per_user' => $values['usage_limit_per_user'],
+    'bulk' => 0,
+  );
+
+  db_insert('commerce_promotion_codes')->fields($row)->execute();
+}
