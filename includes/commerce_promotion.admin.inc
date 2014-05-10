@@ -1,7 +1,5 @@
 <?php
 
-commerce_promotion_balalaika_autoloader();
-
 /**
  * Page callback: build a form for promotion.
  */

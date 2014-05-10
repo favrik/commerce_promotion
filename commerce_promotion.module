@@ -53,6 +53,22 @@ function commerce_promotion_menu_local_tasks_alter(&$data, $router_item, $root_p
   }
 }
 
+/*
+ * Implements hook_commerce_checkout_pane_info().
+ */
+function commerce_promotion_commerce_checkout_pane_info() {
+  $panes['commerce_promotion'] = array(
+    'title' => t('Promotions'),
+    'file' => 'includes/commerce_promotion.checkout_pane.inc',
+    'base' => 'commerce_coupon_pane',
+    'page' => 'checkout',
+    'fieldset' => TRUE,
+    'locked' => FALSE,
+  );
+
+  return $panes;
+}
+
 /**
  * Load balalaika.
  */
@@ -68,6 +84,7 @@ function commerce_promotion_balalaika_autoloader() {
 function commerce_promotion_get_builder() {
   $result = &drupal_static(__FUNCTION__);
   if (!isset($result)) {
+    commerce_promotion_balalaika_autoloader();
     $builder = new \Balalaika\Builder\ArrayBuilder();
     $result = $builder;
   }
@@ -267,15 +284,10 @@ function commerce_promotion_load($promotion_id) {
     $code = commerce_promotion_load_one_code($promotion_id);
     if ($code) {
       $promotion['has_code'] = TRUE;
-      if ($code['bulk'] == 0) {
-        $promotion['code_type'] = 'simple';
-        $promotion['code'] = $code['code'];
-        $promotion['usage_limit_per_code'] = $code['usage_limit_per_code'];
-        $promotion['usage_limit_per_user'] = $code['usage_limit_per_user'];
-
-      } else {
-
-      }
+      $promotion['code_type'] = $code['bulk'] ? 'bulk' : 'simple';
+      $promotion['code'] = $code['code'];
+      $promotion['usage_limit_per_code'] = $code['usage_limit_per_code'];
+      $promotion['usage_limit_per_user'] = $code['usage_limit_per_user'];
     }
   }
 
@@ -308,4 +320,49 @@ function commerce_promotion_load_actions($promotion_id) {
   }
 
   return $actions;
+}
+
+/**
+ * Find an active promotion by code.
+ */
+function commerce_promotion_find_by_code($code) {
+  $result = db_query('
+    SELECT commerce_promotion_id, code
+    FROM commerce_promotion_codes c
+    WHERE c.code = :code', array(':code' => $code)
+  )->fetchAssoc();
+
+  if ($result) {
+    return commerce_promotion_load($result['commerce_promotion_id']);
+  }
+
+  return NULL;
+}
+
+/**
+ * Try to apply a promotion code.
+ */
+function commerce_promotion_apply_code($code) {
+  $result = array();
+  $promotion = commerce_promotion_find_by_code($code);
+
+  if ($promotion) {
+    $promotion['submitted_code'] = $code;
+    $builder = commerce_promotion_get_builder();
+    $promotion = $builder->build($promotion);
+
+    module_load_include('inc', 'commerce_promotion', 'includes/commerce_promotion.subject');
+    $subject = new CommercePromotionSubject();
+    if ($promotion->apply($subject)) {
+      $result['success'] = TRUE;
+    } else {
+      $result['error'] = t('Unable to redeem coupon.');
+    }
+
+    return $result;
+  }
+
+  $result['error'] = empty($code) ? t('Please enter a code.') : t('Your coupon code is not valid.');
+
+  return $result;
 }
