@@ -6,7 +6,7 @@ commerce_promotion_balalaika_autoloader();
  * Page callback: build a form for promotion.
  */
 function commerce_promotion_get_form($promotion_id = NULL) {
-  $promotion = $promotion_id ? 'something' : commerce_promotion_defaults();
+  $promotion = $promotion_id ? commerce_promotion_load($promotion_id) : commerce_promotion_defaults();
   $form_state['build_info']['args'] = array($promotion);
 
   return drupal_build_form('commerce_promotion_form', $form_state);
@@ -65,6 +65,9 @@ function commerce_promotion_form($form, &$form_state, $promotion) {
  * Form builder for AJAX forms that can have many different field groups.
  */
 function commerce_promotion_multiple_items_form(&$form, &$form_state, $base_name, $display) {
+  // Set a handy reference.
+  $promotion = $form_state['promotion'];
+
   $add_button_name = $base_name . '_add_button';
 
   $form[$base_name] = array(
@@ -75,6 +78,7 @@ function commerce_promotion_multiple_items_form(&$form, &$form_state, $base_name
 
   $builder = commerce_promotion_get_builder();
   $builder_name = 'get' . ucfirst($base_name);
+  // $builder->getRules(), ->getActions(), etc.
   $config = $builder->$builder_name();
   $form_state[$base_name . '_config'] = $config;
 
@@ -106,6 +110,29 @@ function commerce_promotion_multiple_items_form(&$form, &$form_state, $base_name
     '#suffix' => '</div>',
   );
 
+  // Initialize existing components.
+  if (!empty($promotion[$base_name]) && !isset($form_state[$base_name . '_count'])) {
+    $components = $promotion[$base_name];
+    $counter = 0;
+    foreach ($components as $component_name => $config) {
+      $form_state[$base_name . '_count'] = $counter;
+
+      $rule_form_container = array(
+        '#prefix' => '<div class="container-inline promotion-property">',
+        '#suffix' => '</div>',
+      );
+
+      $component_form = commerce_promotion_get_component_form($base_name, $component_name, $form_state);
+      foreach ($component_form as $name => $field) {
+        $rule_form_container[$name] = $field;
+      }
+
+      $form_state[$base_name . '_values'][$counter] = $rule_form_container;
+      $counter++;
+    }
+  }
+
+  // Add or remove components via AJAX.
   if (isset($form_state['triggering_element'])) {
     if (strpos($form_state['triggering_element']['#name'], $base_name . '-remove') !== FALSE) {
       $id = str_replace($base_name . '-remove-', '', $form_state['triggering_element']['#name']);
@@ -123,7 +150,7 @@ function commerce_promotion_multiple_items_form(&$form, &$form_state, $base_name
         '#suffix' => '</div>',
       );
 
-      $rule_form = commerce_promotion_get_component_form($base_name, $form_state);
+      $rule_form = commerce_promotion_get_component_form($base_name, $form_state['values'][$base_name . '_options'], $form_state);
       foreach ($rule_form as $name => $field) {
         $rule_form_container[$name] = $field;
       }
@@ -133,9 +160,8 @@ function commerce_promotion_multiple_items_form(&$form, &$form_state, $base_name
     }
   }
 
-  // If there are rules values in the state.
+  // If there are component values in the state, render them.
   if (isset($form_state[$base_name . '_count'])) {
-    // Render all rules.
     for ($i = 0; $i <= $form_state[$base_name . '_count']; $i++) {
       if (isset($form_state[$base_name . '_values'][$i])) {
         foreach ($form_state[$base_name . '_values'][$i] as $key => $field) {
@@ -161,26 +187,49 @@ function commerce_promotion_get_component_options($config) {
 /**
  * Component can be rules or actions.
  */
-function commerce_promotion_get_component_form($base_name, $form_state) {
-  $component_name = $form_state['values'][$base_name . '_options'];
-  $count = $form_state[$base_name . '_count'];
-
+function commerce_promotion_get_component_form($base_name, $component_name, $form_state) {
   $config = $form_state[$base_name . '_config'];
   $component_config = $config[$component_name];
   $component_config['component_name'] = $component_name;
 
   $form_callback = 'commerce_promotion_' . $base_name . '_item_form';
-  return $form_callback($component_config, $count, $form_state);
+  $form = $form_callback($component_config, $form_state);
+
+  // Add remove button.
+  $count = $form_state[$base_name . '_count'];
+  $form[$component_name]['remove'] = array(
+    '#type' => 'button',
+    '#name' => $base_name . '-remove-' . $count,
+    '#value' => t('Remove'),
+    '#prefix' => ' &nbsp;&nbsp;&nbsp; ',
+    '#ajax' => array(
+      'callback' => 'commerce_promotion_ajax_'.$base_name.'_refresh',
+      'wrapper' => 'promotion-' . $base_name,
+    ),
+    '#limit_validation_errors' => array(
+      array($base_name . '_options')
+    ),
+  );
+
+  return $form;
 }
 
 /**
  * FIXME refactor item forms into one set of code to be more DRY.
  */
-function commerce_promotion_rules_item_form($config, $count, $form_state) {
+function commerce_promotion_rules_item_form($config, $form_state) {
+  $promotion = $form_state['promotion'];
+
+  $defaults = array();
+  if (isset($promotion['rules'][$config['component_name']])) {
+    $defaults = $promotion['rules'][$config['component_name']];
+  }
+
   $form['operator'] = array(
     '#type' => 'select',
     '#options' => $config['operators'],
-    '#field_prefix' => $config['name']
+    '#field_prefix' => $config['name'],
+    '#default_value' => $defaults ? $defaults['operator'] : '',
   );
 
   if ($config['field']) {
@@ -189,6 +238,7 @@ function commerce_promotion_rules_item_form($config, $count, $form_state) {
       $form['field'] = array(
         '#type' => 'textarea',
         '#cols' => 30,
+
       );
     } else if ($config['component_name'] == 'user_is') {
       $form['field'] = array(
@@ -205,32 +255,28 @@ function commerce_promotion_rules_item_form($config, $count, $form_state) {
         '#size' => 5,
       );
     }
-  }
 
-  $form['remove'] = array(
-    '#type' => 'button',
-    '#name' => 'rules-remove-' . $count,
-    '#value' => t('Remove'),
-    '#prefix' => ' &nbsp;&nbsp;&nbsp; ',
-    '#ajax' => array(
-      'callback' => 'commerce_promotion_ajax_rules_refresh',
-      'wrapper' => 'promotion-rules',
-    ),
-    '#limit_validation_errors' => array(
-      array('rules_options')
-    ),
-  );
+    $form['field']['#default_value'] = $defaults ? $defaults['value'] : '';
+  }
 
   return array($config['component_name'] => $form);
 }
 
-function commerce_promotion_actions_item_form($config, $count, $form_state) {
+function commerce_promotion_actions_item_form($config, $form_state) {
+  $promotion = $form_state['promotion'];
+
+  $defaults = array();
+  if (isset($promotion['actions'][$config['component_name']])) {
+    $defaults = $promotion['actions'][$config['component_name']];
+  }
+
   if ($config['field']) {
     $form['field'] = array(
       '#type' => 'textfield',
       '#field_prefix' => $config['name'],
       '#field_suffix' => $config['component_name'] == 'discount_percentage' ? '%' : 'USD',
       '#size' => 5,
+      '#default_value' => $defaults ? $defaults['argument'] / 100 : '',
     );
   } else {
 
@@ -238,20 +284,6 @@ function commerce_promotion_actions_item_form($config, $count, $form_state) {
       '#markup' => $config['name'],
     );
   }
-
-  $form['remove'] = array(
-    '#type' => 'button',
-    '#name' => 'actions-remove-' . $count,
-    '#value' => t('Remove'),
-    '#prefix' => ' &nbsp;&nbsp;&nbsp; ',
-    '#ajax' => array(
-      'callback' => 'commerce_promotion_ajax_actions_refresh',
-      'wrapper' => 'promotion-actions',
-    ),
-    '#limit_validation_errors' => array(
-      array('actions_options')
-    ),
-  );
 
   return array($config['component_name'] => $form);
 }
@@ -298,6 +330,7 @@ function commerce_promotion_set_codes_form(&$form, &$form_state, $promotion) {
     '#type' => 'checkbox',
     '#title' => t('Has Promotion Code'),
     '#size' => 20,
+    '#default_value' => $promotion['has_code'],
   );
 
   $form['activators']['code_options'] = array(
@@ -317,7 +350,7 @@ function commerce_promotion_set_codes_form(&$form, &$form_state, $promotion) {
     '#prefix' => '<div class="container-inline inline-radios">',
     '#suffix' => '</div><br />',
     '#options' => array('simple' => 'Code', 'bulk' => 'Bulk Code'),
-    '#default_value' => $promotion['single_code'],
+    '#default_value' => $promotion['code_type'],
   );
 
   $codes['simple_code'] = array(
@@ -327,6 +360,7 @@ function commerce_promotion_set_codes_form(&$form, &$form_state, $promotion) {
     '#states' => array(
       'visible' => array('input[name="code_type"]' => array('value' => 'simple'))
     ),
+    '#default_value' => $promotion['code'],
   );
 
   $bulk_states = array(
@@ -354,7 +388,7 @@ function commerce_promotion_set_codes_form(&$form, &$form_state, $promotion) {
     '#type' => 'select',
     '#title' => t('Code Length'),
     '#options' => array_combine($lengths, $lengths),
-    '#default_value' => $promotion['bulk_length'],
+    '#default_value' => 8,
     '#description' => t('The number of characters selected here will be appended to the code prefix entered above.'),
     '#states' => $bulk_states,
   );
@@ -384,6 +418,7 @@ function commerce_promotion_set_date_range_form(&$form, &$form_state, $promotion
     '#type' => 'checkbox',
     '#title' => t('Is within date range'),
     '#size' => 20,
+    '#default_value' => $promotion['date']
   );
 
   $states = array(

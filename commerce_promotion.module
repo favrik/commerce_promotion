@@ -22,6 +22,12 @@ function commerce_promotion_menu() {
     'page arguments' => array(),
   ) + $common_settings;
 
+  $items['admin/commerce/promotions/edit/%'] = array(
+    'title' => 'Edit Promotion',
+    'page callback' => 'commerce_promotion_get_form',
+    'page arguments' => array(4),
+  ) + $common_settings;
+
   $items['admin/commerce/promotions/user-autocomplete'] = array(
     'title' => 'Multiple User Autocomplete',
     'page callback' => 'commerce_promotion_user_autocomplete',
@@ -81,9 +87,12 @@ function commerce_promotion_defaults(array $values = array()) {
     'end' => NULL,
     'usage_limit_per_code' => 0,
     'usage_limit_per_user' => 1,
+    'code' => '',
     // This is metadata
-    'single_code' => 'simple',
+    'has_code' => 0,
+    'code_type' => 'simple',
     'bulk_length' => 8,
+    'date' => 0,
   );
 
   return $values;
@@ -237,4 +246,66 @@ function commerce_promotion_delete_all() {
   db_delete('commerce_promotion_codes')->execute();
   db_delete('commerce_promotion_actions')->execute();
   db_delete('commerce_promotion_rules')->execute();
+}
+
+function commerce_promotion_load($promotion_id) {
+  $promotion = db_select('commerce_promotion', 'p')
+    ->fields('p')
+    ->condition('commerce_promotion_id', $promotion_id)
+    ->execute()
+    ->fetchAssoc();
+
+  if ($promotion) {
+    $promotion = commerce_promotion_defaults($promotion);
+    $promotion['actions'] = commerce_promotion_load_actions($promotion_id);
+    $promotion['rules'] = commerce_promotion_load_rules($promotion_id);
+
+    if ($promotion['start'] || $promotion['end']) {
+      $promotion['date'] = TRUE;
+    }
+
+    $code = commerce_promotion_load_one_code($promotion_id);
+    if ($code) {
+      $promotion['has_code'] = TRUE;
+      if ($code['bulk'] == 0) {
+        $promotion['code_type'] = 'simple';
+        $promotion['code'] = $code['code'];
+        $promotion['usage_limit_per_code'] = $code['usage_limit_per_code'];
+        $promotion['usage_limit_per_user'] = $code['usage_limit_per_user'];
+
+      } else {
+
+      }
+    }
+  }
+
+  return $promotion;
+}
+
+function commerce_promotion_load_rules($promotion_id) {
+  $result = db_select('commerce_promotion_rules', 'r')
+    ->fields('r', array('rule', 'operator', 'value'))
+    ->condition('commerce_promotion_id', $promotion_id)
+    ->execute();
+
+  $rules = array();
+  foreach ($result as $rule) {
+    $rules[$rule->rule] = (array) $rule;
+  }
+
+  return $rules;
+}
+
+function commerce_promotion_load_actions($promotion_id) {
+  $result = db_select('commerce_promotion_actions', 'a')
+    ->fields('a', array('action', 'argument'))
+    ->condition('commerce_promotion_id', $promotion_id)
+    ->execute();
+
+  $actions = array();
+  foreach ($result as $action) {
+    $actions[$action->action] = (array) $action;
+  }
+
+  return $actions;
 }
