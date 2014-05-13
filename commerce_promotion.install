@@ -176,3 +176,10 @@ function commerce_promotion_schema() {
 
   return $schema;
 }
+
+/**
+ * Implements hook_enable().
+ */
+function commerce_promotion_enable() {
+  commerce_line_item_configure_line_item_fields(array('commerce_promotion'));
+}
