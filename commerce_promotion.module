@@ -34,6 +34,15 @@ function commerce_promotion_menu() {
     'type' => MENU_CALLBACK,
   ) + $common_settings;
 
+  // Remove coupon from order.
+  $items['commerce/promotions/order/remove/%/%commerce_order'] = array(
+    'title' => 'Delete coupon from order',
+    'page callback' => 'commerce_promotion_remove_code_from_order_callback',
+    'page arguments' => array(4, 5),
+    'access arguments' => array('access checkout'),
+    'type' => MENU_CALLBACK,
+  );
+
   return $items;
 }
 
@@ -60,7 +69,7 @@ function commerce_promotion_commerce_checkout_pane_info() {
   $panes['commerce_promotion'] = array(
     'title' => t('Promotions'),
     'file' => 'includes/commerce_promotion.checkout_pane.inc',
-    'base' => 'commerce_coupon_pane',
+    'base' => 'commerce_promotion_pane',
     'page' => 'checkout',
     'fieldset' => TRUE,
     'locked' => FALSE,
@@ -70,11 +79,123 @@ function commerce_promotion_commerce_checkout_pane_info() {
 }
 
 /**
+ * Implements hook_commerce_line_item_type_info().
+ */
+function commerce_promotion_commerce_line_item_type_info() {
+  return array(
+    'commerce_promotion' => array(
+      'type' => 'commerce_promotion',
+      'name' => t('Fixed amount discount'),
+      'description' => t('Line item for fixed amounts.'),
+      'add_form_submit_value' => t('Add Discount'),
+      'base' => 'commerce_promotion_line_item',
+    ),
+  );
+}
+
+/**
+ * Determine the discount's line item title.
+ *
+ * @return
+ *   The line item title.
+ */
+function commerce_promotion_line_item_title() {
+  return t('Fixed amount discount');
+}
+
+/**
+ * Implements hook_commerce_cart_order_refresh().
+ */
+function commerce_promotion_commerce_cart_order_refresh($wrapper) {
+  $line_items_to_delete = array();
+  $cloned_line_items = array();
+
+  commerce_promotion_remove_price_components($wrapper->commerce_order_total);
+
+  foreach ($wrapper->commerce_line_items as $delta => $wrapper_line_item) {
+    if ($wrapper_line_item->getBundle() == 'commerce_promotion') {
+      $cloned_line_items[$wrapper_line_item->getIdentifier()] = clone($wrapper_line_item->value());
+      commerce_promotion_remove_price_components($wrapper_line_item->commerce_unit_price);
+      commerce_promotion_remove_price_components($wrapper_line_item->commerce_total);
+    }
+  }
+
+  // Save the line items which have changes after removing/re-adding discounts;
+  // except if one of our discount type line items still has price 0, delete it.
+  foreach ($wrapper->commerce_line_items as $delta => $wrapper_line_item) {
+    $id = $wrapper_line_item->getIdentifier();
+
+    // Only check non-new line items; new ones have already been saved.
+    if (isset($cloned_line_items[$id])) {
+      if ($wrapper_line_item->getBundle() == 'commerce_discount' && $wrapper_line_item->commerce_unit_price->amount->value() == 0) {
+        $line_items_to_delete[] = $id;
+        $wrapper->commerce_line_items->offsetUnset($delta);
+      }
+      else {
+        // Check for changes, in commerce_unit_price (in the same way as
+        // commerce_cart_order_refresh() does) and quantity.
+        // (Don't check e.g. commerce_total; it may not be updated yet.)
+        $old_line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $cloned_line_items[$id]);
+        $old_data = $old_line_item_wrapper->commerce_unit_price->data->value() + array('components' => array());
+        $data = (array) $wrapper_line_item->commerce_unit_price->data->value() + array('components' => array());
+
+        if ($wrapper_line_item->commerce_unit_price->amount->value() != $old_line_item_wrapper->commerce_unit_price->amount->value() ||
+          $wrapper_line_item->commerce_unit_price->currency_code->value() != $old_line_item_wrapper->commerce_unit_price->currency_code->value() ||
+          $data['components'] != $old_data['components']) {
+          // Save changed line item (which will correctly set commerce_total).
+          $wrapper_line_item->save();
+        }
+      }
+    }
+  }
+
+  // Delete line items.
+  commerce_line_item_delete_multiple($line_items_to_delete);
+
+  // Re-add all applicable promotion price components and/or line items.
+  commerce_promotion_apply_promotion($wrapper->value());
+}
+
+/**
+ *
+ */
+function commerce_promotion_remove_price_components($price_wrapper) {
+  $data = $price_wrapper->data->value();
+  $component_removed = FALSE;
+  // Remove price components belonging to order discounts.
+  foreach ($data['components'] as $key => $component) {
+    if (empty($component['price']['data']['promotion_id'])) {
+      continue;
+    }
+    unset($data['components'][$key]);
+    $component_removed = TRUE;
+  }
+
+  // Don't alter the price components if no components were removed.
+  if (!$component_removed) {
+    return;
+  }
+
+  // Re-save the price without the discounts (if existed).
+  $price_wrapper->data->set($data);
+
+  // Re-set the total price.
+  $total = commerce_price_component_total($price_wrapper->value());
+  $price_wrapper->amount->set($total['amount']);
+}
+
+/**
+ * Page callback: delete a promotion from an order.
+ */
+function commerce_promotion_remove_code_from_order_callback($promotion_id, $order) {
+
+}
+
+/**
  * Load balalaika.
  */
 function commerce_promotion_balalaika_autoloader() {
   $loader = require './' . drupal_get_path('module', 'commerce_promotion') . '/balalaika/vendor/autoload.php';
-
   return $loader;
 }
 
@@ -82,9 +203,9 @@ function commerce_promotion_balalaika_autoloader() {
  * Get promotion builder.
  */
 function commerce_promotion_get_builder() {
+  commerce_promotion_balalaika_autoloader();
   $result = &drupal_static(__FUNCTION__);
   if (!isset($result)) {
-    commerce_promotion_balalaika_autoloader();
     $builder = new \Balalaika\Builder\ArrayBuilder();
     $result = $builder;
   }
@@ -327,13 +448,17 @@ function commerce_promotion_load_actions($promotion_id) {
  */
 function commerce_promotion_find_by_code($code) {
   $result = db_query('
-    SELECT commerce_promotion_id, code
+    SELECT commerce_promotion_id, code_id, code
     FROM commerce_promotion_codes c
     WHERE c.code = :code', array(':code' => $code)
   )->fetchAssoc();
 
   if ($result) {
-    return commerce_promotion_load($result['commerce_promotion_id']);
+    $data = commerce_promotion_load($result['commerce_promotion_id']);
+    $data['submitted_code'] = $code;
+    $data['submitted_code_id'] = $result['code_id'];
+
+    return $data;
   }
 
   return NULL;
@@ -342,18 +467,19 @@ function commerce_promotion_find_by_code($code) {
 /**
  * Try to apply a promotion code.
  */
-function commerce_promotion_apply_code($code) {
-  $result = array();
-  $promotion = commerce_promotion_find_by_code($code);
+function commerce_promotion_apply_code($code, $order) {
+  $result = array(
+    'success' => FALSE,
+    'error' => '',
+  );
 
-  if ($promotion) {
-    $promotion['submitted_code'] = $code;
-    $builder = commerce_promotion_get_builder();
-    $promotion = $builder->build($promotion);
+  $promotion_data = commerce_promotion_find_by_code($code);
 
-    module_load_include('inc', 'commerce_promotion', 'includes/commerce_promotion.subject');
-    $subject = new CommercePromotionSubject();
-    if ($promotion->apply($subject)) {
+  if ($promotion_data) {
+    $promotion = commerce_promotion_get_balalaika_promotion($promotion_data);
+    $subject = commerce_promotion_get_subject($order, $promotion_data);
+    if ($promotion->isEligible($subject)) {
+      $subject->savePromotionReference();
       $result['success'] = TRUE;
     } else {
       $result['error'] = t('Unable to redeem coupon.');
@@ -365,4 +491,32 @@ function commerce_promotion_apply_code($code) {
   $result['error'] = empty($code) ? t('Please enter a code.') : t('Your coupon code is not valid.');
 
   return $result;
+}
+
+function commerce_promotion_apply_promotion($order) {
+  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $code = $order_wrapper->field_commerce_promotion_code->value();
+  $promotion_id = $order_wrapper->field_commerce_promotion->value();
+
+  if ($promotion_id && $code) {
+    $promotion_data = commerce_promotion_find_by_code($code);
+  } elseif ($promotion_id) {
+    $promotion_data = commerce_promotion_load($promotion_id);
+  }
+
+  if (isset($promotion_data)) {
+    $promotion = commerce_promotion_get_balalaika_promotion($promotion_data);
+    $subject = commerce_promotion_get_subject($order, $promotion_data);
+    $promotion->apply($subject);
+  }
+}
+
+function commerce_promotion_get_balalaika_promotion($promotion_data) {
+  $builder = commerce_promotion_get_builder();
+  return $builder->build($promotion_data);
+}
+
+function commerce_promotion_get_subject($order, $promotion_data) {
+  module_load_include('inc', 'commerce_promotion', 'includes/commerce_promotion.subject');
+  return new CommercePromotionSubject($order, $promotion_data);
 }

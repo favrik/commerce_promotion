@@ -30,14 +30,11 @@ function commerce_promotion_pane_checkout_form($form, &$form_state, $checkout_pa
     '#value' => t('Add coupon'),
     '#name' => 'coupon_add',
     '#limit_validation_errors' => array(),
-    '#ajax' => array(
-      'callback' => 'commerce_promotion_add_coupon_callback',
-      'wrapper' => 'commerce-checkout-coupon-ajax-wrapper',
-    ),
+
   );
 
   if (isset($form_state['triggering_element']) && $form_state['triggering_element']['#name'] == 'coupon_add') {
-    $code = $form_state['input']['commerce_coupon']['coupon_code'];
+    $code = $form_state['input']['commerce_promotion']['coupon_code'];
     $result = commerce_promotion_apply_code($code, $order);
 
     if ($result['success']) {
@@ -52,10 +49,9 @@ function commerce_promotion_pane_checkout_form($form, &$form_state, $checkout_pa
       // Recalculate discounts.
       commerce_cart_order_refresh($order);
 
-      // TODO cart_order_refresh could trigger some errors!
-      rules_invoke_all('commerce_coupon_applied_to_cart', $coupon, $order);
+      drupal_set_message(t('Coupon code applied.'));
     } else {
-      drupal_set_message($error, 'error');
+      drupal_set_message($result['error'], 'error');
     }
   }
 
