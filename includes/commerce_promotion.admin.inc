@@ -465,6 +465,7 @@ function commerce_promotion_form_validate($form, &$form_state) {
 function commerce_promotion_form_submit(&$form, &$form_state) {
   $values = $form_state['values'];
 
+  // FYI: This already saves a single promotion code.
   $promotion_id = commerce_promotion_save($values);
 
   if (isset($values['code']) && $values['code'] && $values['code_type'] == 'bulk') {
