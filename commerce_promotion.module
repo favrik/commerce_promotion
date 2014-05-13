@@ -47,6 +47,40 @@ function commerce_promotion_menu() {
 }
 
 /**
+ * Implements hook_entity_info().
+ */
+function commerce_promotion_entity_info() {
+  $items['commerce_promotion'] = array(
+    'label' => t('Commerce Promotion'),
+    'label callback' => 'commerce_promotion_label',
+    'base table' => 'commerce_promotion',
+    'fieldable' => TRUE,
+    'entity keys' => array(
+      'id' => 'commerce_promotion_id',
+      'name' => 'name',
+      'label' => 'name',
+    ),
+    'access callback' => 'commerce_promotion_access',
+    'module' => 'commerce_promotion',
+    'redirect' => FALSE,
+    'metadata controller class' => 'CommercePromotionMetadataController',
+  );
+
+  return $items;
+}
+
+function commerce_promotion_label($entity, $entity_type) {
+  return t('@number', array('@number' => $entity->name));
+}
+
+/**
+ * Access callback for commerce_promotion entities.
+ */
+function commerce_promotion_access($op, $entity, $account, $entity_type) {
+  return user_access('administer commerce promotions', $account);
+}
+
+/**
  * Implements hook_menu_local_tasks_alter().
  */
 function commerce_promotion_menu_local_tasks_alter(&$data, $router_item, $root_path) {
@@ -496,7 +530,12 @@ function commerce_promotion_apply_code($code, $order) {
 function commerce_promotion_apply_promotion($order) {
   $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
   $code = $order_wrapper->field_commerce_promotion_code->value();
-  $promotion_id = $order_wrapper->field_commerce_promotion->value();
+  $promotion_id = FALSE;
+  // Only take the first promotion, currently orders can only have 1 promotion applied.
+  $promotions = $order_wrapper->field_commerce_promotions->value();
+  if (isset($promotions[0])) {
+    $promotion_id = $promotions[0]->commerce_promotion_id;
+  }
 
   if ($promotion_id && $code) {
     $promotion_data = commerce_promotion_find_by_code($code);
