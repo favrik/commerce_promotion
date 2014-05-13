@@ -35,8 +35,6 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
    * @return int
    */
   public function getProductTotal() {
-    $total = 0;
-
     if (!$this->order_wrapper->commerce_line_items->value()) {
       return $total;
     }
@@ -58,12 +56,14 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
    */
   public function addOrderDiscount($discount) {
     $commerce_price = array(
-      'amount' => $discount,
+      'amount' => -$discount, // Notice the minus sign here.
       'currency_code' => commerce_default_currency(),
       'data' => array(),
     );
 
-    $this->addPromotionLineItem($commerce_price);
+    if (!$this->setExistingPromotionLineItem($commerce_price)) {
+      $this->addPromotionLineItem($commerce_price);
+    }
 
     commerce_order_calculate_total($this->order);
   }
@@ -73,6 +73,24 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
   	$this->order->field_commerce_promotions[LANGUAGE_NONE][0]['target_id'] = $this->promotion_data['commerce_promotion_id'];
     $this->order_wrapper->field_commerce_promotion_code->set($this->promotion_data['submitted_code']);
     commerce_order_save($this->order);
+  }
+
+  protected function setExistingPromotionLineItem($amount) {
+    $modified_existing = FALSE;
+    foreach ($this->order_wrapper->commerce_line_items as $line_item_wrapper) {
+      if ($line_item_wrapper->getBundle() == 'commerce_promotion') {
+        // Add the discount component price if the line item was originally
+        // added by discount module.
+        $line_item = $line_item_wrapper->value();
+        if (isset($line_item->data['commerce_promotion'])) {
+          $this->addPriceComponent($line_item_wrapper, $amount);
+          $line_item_wrapper->save();
+          $modified_existing = TRUE;
+        }
+      }
+    }
+
+    return $modified_existing;
   }
 
   protected function addPromotionLineItem($amount) {
@@ -86,7 +104,7 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
     );
 
     $line_item = entity_create('commerce_line_item', $values);
-    $lne_item_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
+    $line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
 
     // Initialize the line item unit price.
     $line_item_wrapper->commerce_unit_price->amount = 0;
