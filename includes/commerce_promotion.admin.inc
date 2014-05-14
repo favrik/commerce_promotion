@@ -53,7 +53,7 @@ function commerce_promotion_form($form, &$form_state, $promotion) {
 
   $form['submit'] = array(
     '#type' => 'submit',
-    '#value' => t('Create Promotion'),
+    '#value' => isset($promotion['commerce_promotion_id']) ? t('Save Promotion') : t('Create Promotion'),
   );
 
   return $form;
@@ -111,10 +111,9 @@ function commerce_promotion_multiple_items_form(&$form, &$form_state, $base_name
   // Initialize existing components.
   if (!empty($promotion[$base_name]) && !isset($form_state[$base_name . '_count'])) {
     $components = $promotion[$base_name];
-    $counter = 0;
+    $form_state[$base_name . '_count'] = 0;
+    $counter = &$form_state[$base_name . '_count'];
     foreach ($components as $component_name => $config) {
-      $form_state[$base_name . '_count'] = $counter;
-
       $rule_form_container = array(
         '#prefix' => '<div class="container-inline promotion-property">',
         '#suffix' => '</div>',
@@ -263,9 +262,11 @@ function commerce_promotion_rules_item_form($config, $form_state) {
 function commerce_promotion_actions_item_form($config, $form_state) {
   $promotion = $form_state['promotion'];
 
-  $defaults = array();
+  $default_value = '';
   if (isset($promotion['actions'][$config['component_name']])) {
     $defaults = $promotion['actions'][$config['component_name']];
+    $default_value = $config['component_name'] == 'discount_fixed_amount'
+                   ? $defaults['argument'] / 100 : $defaults['argument'];
   }
 
   if ($config['field']) {
@@ -274,7 +275,7 @@ function commerce_promotion_actions_item_form($config, $form_state) {
       '#field_prefix' => $config['name'],
       '#field_suffix' => $config['component_name'] == 'discount_percentage' ? '%' : 'USD',
       '#size' => 5,
-      '#default_value' => $defaults ? $defaults['argument'] / 100 : '',
+      '#default_value' => $default_value,
     );
   } else {
 
@@ -464,6 +465,9 @@ function commerce_promotion_form_validate($form, &$form_state) {
  */
 function commerce_promotion_form_submit(&$form, &$form_state) {
   $values = $form_state['values'];
+  if (isset($form_state['promotion']['commerce_promotion_id'])) {
+    $values['commerce_promotion_id'] = $form_state['promotion']['commerce_promotion_id'];
+  }
 
   // FYI: This already saves a single promotion code.
   $promotion_id = commerce_promotion_save($values);
