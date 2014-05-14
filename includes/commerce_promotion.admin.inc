@@ -603,3 +603,45 @@ function commerce_promotion_date_range($promotion) {
 
   return FALSE;
 }
+
+/**
+ * Form callback: delete a promotion.
+ */
+function commerce_promotion_delete_form($form, &$form_state, $promotion_id) {
+  $promotion = commerce_promotion_load($promotion_id);
+
+  $form_state['commerce_promotion'] = $promotion;
+
+  // Ensure this include file is loaded when the form is rebuilt from the cache.
+  $form_state['build_info']['files']['form'] = drupal_get_path('module', 'commerce_promotion') . '/includes/commerce_promotion.admin.inc';
+  $form['#submit'][] = 'commerce_promotion_delete_form_submit';
+  $form = confirm_form($form, t('Are you sure you want to delete the %name promotion?', array('%name' => $promotion['name'])), 'admin/commerce/promotions', '<p>' . t('Deleting this promotion cannot be undone.') . '</p>', t('Delete'), t('Cancel'), 'confirm');
+
+  // Get the orders referenced by the promotion.
+  $query = new EntityFieldQuery();
+  $query
+    ->entityCondition('entity_type', 'commerce_order')
+    ->fieldCondition('field_commerce_promotions', 'target_id', $promotion_id);
+  $result = $query->execute();
+
+  if (!empty($result)) {
+    $description = t('This promotion is referenced by an order and therefore cannot be deleted. Disable it instead.');
+    $form['description']['#markup'] .= '<p>' . $description . '</p>';
+    $form['actions']['submit']['#disabled'] = TRUE;
+  }
+
+  return $form;
+}
+
+function commerce_promotion_delete_form_submit($form, &$form_state) {
+  $promotion = $form_state['commerce_promotion'];
+
+  if (commerce_promotion_delete($promotion['commerce_promotion_id'])) {
+    drupal_set_message(t('%name promotion has been deleted.', array('%name' => $promotion['name'])));
+    watchdog('commerce_promotion', 'Deleted promotion %id %name.', array('%name' => $promotion['name'], '%id' => $promotion['commerce_promotion_id']), WATCHDOG_NOTICE);
+  }
+  else {
+    drupal_set_message(t('%name could not be deleted.', array('%name' => $promotion['name'])), 'error');
+  }
+  $form_state['redirect'] = 'admin/commerce/promotions';
+}

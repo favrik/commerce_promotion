@@ -28,6 +28,12 @@ function commerce_promotion_menu() {
     'page arguments' => array(4),
   ) + $common_settings;
 
+  $items['admin/commerce/promotions/delete/%'] = array(
+    'title' => 'Delete Promotion',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('commerce_promotion_delete_form', 4),
+  ) + $common_settings;
+
   $items['admin/commerce/promotions/user-autocomplete'] = array(
     'title' => 'Multiple User Autocomplete',
     'page callback' => 'commerce_promotion_user_autocomplete',
@@ -657,4 +663,13 @@ function commerce_promotion_get_remove_link($order_id, $promotion_id) {
         'query' => array('destination' => $dest, 'token' => drupal_get_token('commerce_coupon_remove_checkout:' . $promotion_id . ':' . $order_id))
       )
   );
+}
+
+function commerce_promotion_delete($promotion_id) {
+  $deleted = db_delete('commerce_promotion')->condition('commerce_promotion_id', $promotion_id)->execute();
+  db_delete('commerce_promotion_codes')->condition('commerce_promotion_id', $promotion_id)->execute();
+  db_delete('commerce_promotion_actions')->condition('commerce_promotion_id', $promotion_id)->execute();
+  db_delete('commerce_promotion_rules')->condition('commerce_promotion_id', $promotion_id)->execute();
+
+  return $deleted;
 }
