@@ -68,6 +68,7 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
     }
 
     commerce_order_calculate_total($this->order);
+    commerce_order_save($this->order);
   }
 
   public function savePromotionReference() {
@@ -85,6 +86,7 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
         // added by discount module.
         $line_item = $line_item_wrapper->value();
         if (isset($line_item->data['commerce_promotion'])) {
+          $this->resetPromotionLinePrice($line_item_wrapper, $amount);
           $this->addPriceComponent($line_item_wrapper, $amount);
           $line_item_wrapper->save();
           $modified_existing = TRUE;
@@ -108,6 +110,17 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
     $line_item = entity_create('commerce_line_item', $values);
     $line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
 
+    $this->resetPromotionLinePrice($line_item_wrapper, $amount);
+
+    // Add the discount price component.
+    $this->addPriceComponent($line_item_wrapper, $amount);
+
+    // Save the line item and add it to the order.
+    $line_item_wrapper->save();
+    $this->order_wrapper->commerce_line_items[] = $line_item_wrapper;
+  }
+
+  protected function resetPromotionLinePrice($line_item_wrapper, $amount) {
     // Initialize the line item unit price.
     $line_item_wrapper->commerce_unit_price->amount = 0;
     $line_item_wrapper->commerce_unit_price->currency_code = $amount['currency_code'];
@@ -119,14 +132,8 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
       'currency_code' => $amount['currency_code'],
       'data' => array(),
     );
-    $line_item_wrapper->commerce_unit_price->data = commerce_price_component_add($base_price, 'base_price', $base_price, TRUE);
-
-    // Add the discount price component.
-    $this->addPriceComponent($line_item_wrapper, $amount);
-
-    // Save the line item and add it to the order.
-    $line_item_wrapper->save();
-    $this->order_wrapper->commerce_line_items[] = $line_item_wrapper;
+    $line_item_wrapper->commerce_unit_price->data = commerce_price_component_add(
+      $base_price, 'base_price', $base_price, TRUE);
   }
 
   public function addPriceComponent(EntityDrupalWrapper $line_item_wrapper, $amount) {
@@ -154,7 +161,8 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
     $line_item_wrapper->commerce_unit_price->amount = $updated_amount;
     // Add the discount amount as a price component.
     $price = $line_item_wrapper->commerce_unit_price->value();
-    $line_item_wrapper->commerce_unit_price->data = commerce_price_component_add($price, 'promotion', $difference, TRUE, TRUE);
+    $line_item_wrapper->commerce_unit_price->data = commerce_price_component_add(
+      $price, 'promotion', $difference, TRUE, TRUE);
 
     // Update commerce_total so that the order total can be refreshed without
     // saving the line item. Taken from CommerceLineItemEntityController::save().
