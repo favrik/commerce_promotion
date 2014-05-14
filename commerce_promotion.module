@@ -147,11 +147,9 @@ function commerce_promotion_commerce_cart_order_refresh($wrapper) {
   commerce_promotion_remove_price_components($wrapper->commerce_order_total);
 
   foreach ($wrapper->commerce_line_items as $delta => $wrapper_line_item) {
-    if ($wrapper_line_item->getBundle() == 'commerce_promotion') {
-      $cloned_line_items[$wrapper_line_item->getIdentifier()] = clone($wrapper_line_item->value());
-      commerce_promotion_remove_price_components($wrapper_line_item->commerce_unit_price);
-      commerce_promotion_remove_price_components($wrapper_line_item->commerce_total);
-    }
+    $cloned_line_items[$wrapper_line_item->getIdentifier()] = clone($wrapper_line_item->value());
+    commerce_promotion_remove_price_components($wrapper_line_item->commerce_unit_price);
+    commerce_promotion_remove_price_components($wrapper_line_item->commerce_total);
   }
 
   // Save the line items which have changes after removing/re-adding discounts;
@@ -161,7 +159,7 @@ function commerce_promotion_commerce_cart_order_refresh($wrapper) {
 
     // Only check non-new line items; new ones have already been saved.
     if (isset($cloned_line_items[$id])) {
-      if ($wrapper_line_item->getBundle() == 'commerce_discount' && $wrapper_line_item->commerce_unit_price->amount->value() == 0) {
+      if ($wrapper_line_item->getBundle() == 'commerce_promotion' && $wrapper_line_item->commerce_unit_price->amount->value() == 0) {
         $line_items_to_delete[] = $id;
         $wrapper->commerce_line_items->offsetUnset($delta);
       }
@@ -222,7 +220,43 @@ function commerce_promotion_remove_price_components($price_wrapper) {
  * Page callback: delete a promotion from an order.
  */
 function commerce_promotion_remove_code_from_order_callback($promotion_id, $order) {
+  if (!isset($_GET['token']) || !drupal_valid_token($_GET['token'], 'commerce_coupon_remove_checkout:' . $promotion_id . ':' . $order->order_id) || !commerce_checkout_access($order)) {
+    return MENU_ACCESS_DENIED;
+  }
 
+  commerce_promotion_remove_code_from_order($order, $promotion_id);
+  drupal_set_message(t('Coupon removed from order'));
+  drupal_goto();
+}
+
+function commerce_promotion_remove_code_from_order($order, $promotion_id, $save = TRUE) {
+  $original_order = clone $order;
+  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+
+  // Remove the coupons from the order relationship.
+  foreach ($order_wrapper->field_commerce_promotions as $delta => $promotion_wrapper) {
+    $promotion = $promotion_wrapper->value();
+    if ($promotion_id == $promotion->commerce_promotion_id) {
+      $order_wrapper->field_commerce_promotions->offsetUnset($delta);
+      $order_wrapper->field_commerce_promotion_code->set('');
+    }
+  }
+
+/* This seems to be handled by cart_refresh but not sure if on all situations.
+  foreach ($order_wrapper->commerce_line_items as $delta => $line_wrapper) {
+    if ($line_wrapper->getBundle() == 'commerce_promotion') {
+      $line_item = $line_item_wrapper->value();
+      if (isset($line_item->data['commerce_promotion'])) {
+        if ($line_item['data']['commerce_promotion']['commerce_promotion_id'] == $promotion_id) {
+          $order_wrapper->commerce_line_items->offsetUnset()
+        }
+      }
+    }
+  }
+*/
+  if ($original_order <> $order && $save) {
+    commerce_order_save($order);
+  }
 }
 
 /**
@@ -558,4 +592,69 @@ function commerce_promotion_get_balalaika_promotion($promotion_data) {
 function commerce_promotion_get_subject($order, $promotion_data) {
   module_load_include('inc', 'commerce_promotion', 'includes/commerce_promotion.subject');
   return new CommercePromotionSubject($order, $promotion_data);
+}
+
+/**
+ * Show a table with the promotion added.
+ */
+function commerce_promotion_view_promotion($order) {
+  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $header = array(
+    t('Code'), array('data' => t('Name'), 'colspan' => 2)
+  );
+
+  $promotions = $order_wrapper->field_commerce_promotions->value();
+  if ($promotions) {
+    $promotion_id = $promotions[0]->commerce_promotion_id;
+
+    $rows = array();
+    $rows[] = array(
+      $order_wrapper->field_commerce_promotion_code->value(),
+      commerce_promotion_display_action($promotion_id),
+      commerce_promotion_get_remove_link($order->order_id, $promotion_id),
+    );
+
+    return theme('table', array('header' => $header, 'rows' => $rows));
+  }
+
+  return '';
+}
+
+/**
+ * Display the action name for the promotion.
+ */
+function commerce_promotion_display_action($promotion_id) {
+  $actions = commerce_promotion_load_actions($promotion_id);
+  foreach ($actions as $key => $options) {
+    switch ($key) {
+      case 'discount_fixed_amount':
+        return commerce_currency_format($options['argument'], commerce_default_currency()) . ' ' . t('off order');
+
+      case 'discount_percentage':
+        return $options['argument'] . '% ' . t('off order');
+
+      case 'free_shipping':
+        return t('Free shipping');
+    }
+  }
+
+  return 'N/A';
+}
+
+function commerce_promotion_get_remove_link($order_id, $promotion_id) {
+  // If there's an ajax form in the page, get the right destination url.
+  if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] == 'XMLHttpRequest')  {
+    $dest = str_replace($GLOBALS['base_url'] . '/', '', $_SERVER['HTTP_REFERER']);
+  }
+  else {
+    $dest = current_path();
+  }
+
+  return l(
+      t('Remove'),
+      'commerce/promotions/order/remove/' . $promotion_id . '/' . $order_id,
+      array(
+        'query' => array('destination' => $dest, 'token' => drupal_get_token('commerce_coupon_remove_checkout:' . $promotion_id . ':' . $order_id))
+      )
+  );
 }

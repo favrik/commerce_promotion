@@ -18,21 +18,6 @@ function commerce_promotion_pane_checkout_form($form, &$form_state, $checkout_pa
     '#suffix' => '</div>',
   );
 
-  // Store the payment methods in the form for validation purposes.
-  $pane_form['coupon_code'] = array(
-    '#type' => 'textfield',
-    '#title' => t('Coupon Code'),
-    '#description' => t('Enter your coupon code here.'),
-  );
-
-  $pane_form['coupon_add'] = array(
-    '#type' => 'button',
-    '#value' => t('Add coupon'),
-    '#name' => 'coupon_add',
-    '#limit_validation_errors' => array(),
-
-  );
-
   if (isset($form_state['triggering_element']) && $form_state['triggering_element']['#name'] == 'coupon_add') {
     $code = $form_state['input']['commerce_promotion']['coupon_code'];
     $result = commerce_promotion_apply_code($code, $order);
@@ -55,16 +40,31 @@ function commerce_promotion_pane_checkout_form($form, &$form_state, $checkout_pa
     }
   }
 
-  // Extract the View and display keys from the cart contents pane setting.
-  $pane_view = variable_get('commerce_coupon_checkout_pane_view', 'order_coupon_list|checkout');
-  if ($pane_view != 'none') {
-    list($view_id, $display_id) = explode('|', $pane_view);
-    if (!empty($view_id) && !empty($display_id) && views_get_view($view_id)) {
-      $pane_form['redeemed_coupons'] = array(
-        '#type' => 'markup',
-        '#markup' => commerce_embed_view($view_id, $display_id, array($order->order_id)),
-      );
-    }
+  if (empty($order->field_commerce_promotions)) {
+    // Store the payment methods in the form for validation purposes.
+    $pane_form['coupon_code'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Coupon Code'),
+      '#description' => t('Enter your coupon code here.'),
+    );
+
+    $pane_form['coupon_add'] = array(
+      '#type' => 'button',
+      '#value' => t('Add coupon'),
+      '#name' => 'coupon_add',
+      '#limit_validation_errors' => array(),
+      // Fix AJAX later.
+      '#ajax' => array(
+        'callback' => 'commerce_promotion_add_coupon_callback',
+        'wrapper' => 'commerce-checkout-coupon-ajax-wrapper',
+      ),
+    );
+  } else {
+    // Show added promotion.
+    $pane_form['redeemed'] = array(
+      '#type' => 'markup',
+      '#markup' => commerce_promotion_view_promotion($order),
+    );
   }
 
   // Display any new status messages added by this pane within the pane's area.
@@ -83,23 +83,14 @@ function commerce_promotion_pane_checkout_form($form, &$form_state, $checkout_pa
  * AJAX callback: coupon add button.
  */
 function commerce_promotion_add_coupon_callback($form, &$form_state) {
-  // Re-render the cart summary.
-  list($view_id, $display_id) = explode('|', variable_get('commerce_cart_contents_pane_view', 'commerce_cart_summary|default'));
-  $cart_summary = commerce_embed_view($view_id, $display_id, array($form_state['order']->order_id));
-  $commands[] = ajax_command_replace('.view-commerce-cart-summary', $cart_summary);
-
-  // Re-render coupon pane
-  $coupon_pane = $form['commerce_promotion'];
-  $commands[] = ajax_command_replace('#commerce-checkout-coupon-ajax-wrapper', drupal_render($coupon_pane));
-
-  return array('#type' => 'ajax', '#commands' => $commands);
+  return $form['commerce_promotion'];
 }
 
 /*
  * Checkout pane callback: coupon checkout review
  */
 function commerce_promotion_pane_review($form, $form_state, $checkout_pane, $order) {
-  if (!empty($order->commerce_coupons)) {
+  if (!empty($order->commerce_promotions)) {
     // Extract the View and display keys from the cart contents pane setting.
     list($view_id, $display_id) = explode('|', variable_get('commerce_coupon_review_pane_view', 'order_coupon_list|checkout'));
 
