@@ -152,43 +152,22 @@ function commerce_promotion_commerce_cart_order_refresh($wrapper) {
 
   commerce_promotion_remove_price_components($wrapper->commerce_order_total);
 
-  foreach ($wrapper->commerce_line_items as $delta => $wrapper_line_item) {
-    $cloned_line_items[$wrapper_line_item->getIdentifier()] = clone($wrapper_line_item->value());
-    commerce_promotion_remove_price_components($wrapper_line_item->commerce_unit_price);
-    commerce_promotion_remove_price_components($wrapper_line_item->commerce_total);
-  }
+  // A DiscountPercentageAction calculates the discount from the product total.
 
-  // Save the line items which have changes after removing/re-adding discounts;
-  // except if one of our discount type line items still has price 0, delete it.
+  $line_items_to_delete = array();
   foreach ($wrapper->commerce_line_items as $delta => $wrapper_line_item) {
-    $id = $wrapper_line_item->getIdentifier();
-
-    // Only check non-new line items; new ones have already been saved.
-    if (isset($cloned_line_items[$id])) {
-      if ($wrapper_line_item->getBundle() == 'commerce_promotion' && $wrapper_line_item->commerce_unit_price->amount->value() == 0) {
-        $line_items_to_delete[] = $id;
+    if ($wrapper_line_item->getBundle() == 'commerce_promotion'
+        && $wrapper_line_item->commerce_unit_price->amount->value() == 0) {
+        $line_items_to_delete[] = $wrapper_line_item->getIdentifier();
         $wrapper->commerce_line_items->offsetUnset($delta);
-      }
-      else {
-        // Check for changes, in commerce_unit_price (in the same way as
-        // commerce_cart_order_refresh() does) and quantity.
-        // (Don't check e.g. commerce_total; it may not be updated yet.)
-        $old_line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $cloned_line_items[$id]);
-        $old_data = $old_line_item_wrapper->commerce_unit_price->data->value() + array('components' => array());
-        $data = (array) $wrapper_line_item->commerce_unit_price->data->value() + array('components' => array());
-
-        if ($wrapper_line_item->commerce_unit_price->amount->value() != $old_line_item_wrapper->commerce_unit_price->amount->value() ||
-          $wrapper_line_item->commerce_unit_price->currency_code->value() != $old_line_item_wrapper->commerce_unit_price->currency_code->value() ||
-          $data['components'] != $old_data['components']) {
-          // Save changed line item (which will correctly set commerce_total).
-          $wrapper_line_item->save();
-        }
-      }
     }
   }
 
   // Delete line items.
-  commerce_line_item_delete_multiple($line_items_to_delete);
+  if ($line_items_to_delete) {
+    commerce_line_item_delete_multiple($line_items_to_delete);
+    commerce_order_save($wrapper->value());
+  }
 
   // Re-add all applicable promotion price components and/or line items.
   commerce_promotion_apply_promotion($wrapper->value());
