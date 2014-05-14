@@ -35,6 +35,8 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
    * @return int
    */
   public function getProductTotal() {
+    $total = 0;
+
     if (!$this->order_wrapper->commerce_line_items->value()) {
       return $total;
     }
