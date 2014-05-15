@@ -201,6 +201,23 @@ function commerce_promotion_remove_price_components($price_wrapper) {
 }
 
 /**
+ * Implements hook_commerce_price_formatted_components_alter().
+ */
+function commerce_promotion_commerce_price_formatted_components_alter(&$components, $price, $entity) {
+  //
+  if (isset($price['data']['components'])) {
+    // Loop into price components and alter the component title if the discount
+    // component label is found.
+    foreach ($price['data']['components'] as $component) {
+      if (!isset($component['price']['data']['promotion_name'])) {
+        continue;
+      }
+      $components[$component['name']]['title'] = $component['price']['data']['promotion_name'];
+    }
+  }
+}
+
+/**
  * Page callback: delete a promotion from an order.
  */
 function commerce_promotion_remove_code_from_order_callback($promotion_id, $order) {
