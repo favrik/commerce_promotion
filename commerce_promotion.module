@@ -609,20 +609,23 @@ function commerce_promotion_view_promotion($order) {
  */
 function commerce_promotion_display_action($promotion_id) {
   $actions = commerce_promotion_load_actions($promotion_id);
+
+  $items = array();
   foreach ($actions as $key => $options) {
     switch ($key) {
       case 'discount_fixed_amount':
-        return commerce_currency_format($options['argument'], commerce_default_currency()) . ' ' . t('off order');
-
+        $items[] = commerce_currency_format($options['argument'], commerce_default_currency()) . ' ' . t('off order');
+        break;
       case 'discount_percentage':
-        return $options['argument'] . '% ' . t('off order');
-
+        $items[] = $options['argument'] . '% ' . t('off order');
+        break;
       case 'free_shipping':
-        return t('Free shipping');
+        $items[] = t('Free shipping');
+        break;
     }
   }
 
-  return 'N/A';
+  return theme('item_list', array('items' => $items));
 }
 
 function commerce_promotion_get_remove_link($order_id, $promotion_id) {
