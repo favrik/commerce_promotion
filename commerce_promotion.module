@@ -156,10 +156,9 @@ function commerce_promotion_commerce_cart_order_refresh($wrapper) {
 
   $line_items_to_delete = array();
   foreach ($wrapper->commerce_line_items as $delta => $wrapper_line_item) {
-    if ($wrapper_line_item->getBundle() == 'commerce_promotion'
-        && $wrapper_line_item->commerce_unit_price->amount->value() == 0) {
-        $line_items_to_delete[] = $wrapper_line_item->getIdentifier();
-        $wrapper->commerce_line_items->offsetUnset($delta);
+    if ($wrapper_line_item->getBundle() == 'commerce_promotion') {
+      $line_items_to_delete[] = $wrapper_line_item->getIdentifier();
+      $wrapper->commerce_line_items->offsetUnset($delta);
     }
   }
 
