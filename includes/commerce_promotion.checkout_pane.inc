@@ -90,11 +90,8 @@ function commerce_promotion_add_coupon_callback($form, &$form_state) {
  * Checkout pane callback: coupon checkout review
  */
 function commerce_promotion_pane_review($form, $form_state, $checkout_pane, $order) {
-  if (!empty($order->commerce_promotions)) {
-    // Extract the View and display keys from the cart contents pane setting.
-    list($view_id, $display_id) = explode('|', variable_get('commerce_coupon_review_pane_view', 'order_coupon_list|checkout'));
-
-    return commerce_embed_view($view_id, $display_id, array($order->order_id));
+  if (!empty($order->field_commerce_promotions)) {
+    return commerce_promotion_view_promotion($order);
   }
 }
 
