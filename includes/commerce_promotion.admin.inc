@@ -235,7 +235,7 @@ function commerce_promotion_rules_item_form($config, $form_state) {
       $form['field'] = array(
         '#type' => 'textarea',
         '#cols' => 30,
-
+        '#description' => t('Enter zipcodes separated by spaces.'),
       );
     } else if ($config['component_name'] == 'user_is') {
       $form['field'] = array(
