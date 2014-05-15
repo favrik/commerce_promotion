@@ -624,7 +624,18 @@ function commerce_promotion_apply_promotion($order) {
 
 function commerce_promotion_get_balalaika_promotion($promotion_data) {
   $builder = commerce_promotion_get_builder();
+  commerce_promotion_prepare_data($promotion_data);
   return $builder->build($promotion_data);
+}
+
+function commerce_promotion_prepare_data(&$promotion_data) {
+  foreach ($promotion_data['rules'] as $name => $rule) {
+    if (in_array($name, array('zipcode_is', 'user_is'))) {
+      $value = explode($name == 'zipcode_is' ? ' ' : ',', $promotion_data['rules'][$name]['value']);
+      $value = array_map('trim', $value);
+      $promotion_data['rules'][$name]['value'] = $value;
+    }
+  }
 }
 
 function commerce_promotion_get_subject($order, $promotion_data) {
