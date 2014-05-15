@@ -173,7 +173,7 @@ function commerce_promotion_commerce_cart_order_refresh($wrapper) {
 }
 
 /**
- *
+ * Remove commerce_promotion price components, resetting the entities.
  */
 function commerce_promotion_remove_price_components($price_wrapper) {
   $data = $price_wrapper->data->value();
@@ -215,6 +215,43 @@ function commerce_promotion_commerce_price_formatted_components_alter(&$componen
       $components[$component['name']]['title'] = $component['price']['data']['promotion_name'];
     }
   }
+}
+
+/**
+ * This action gives free shipping for all/any service.
+ */
+function commerce_promotion_apply_free_shipping($order, $line_item, $service_name) {
+  if (commerce_promotion_has_free_shipping($order)) {
+    $wrapper_line_item = entity_metadata_wrapper('commerce_line_item', $line_item);
+
+    $wrapper_line_item->commerce_unit_price->amount = 0;
+
+    $shipping_service = commerce_shipping_service_load($service_name);
+
+    // Updating the data component.
+    $wrapper_line_item->commerce_unit_price->data = array();
+    $wrapper_line_item->commerce_unit_price->data = commerce_price_component_add(
+      $wrapper_line_item->commerce_unit_price->value(),
+      $shipping_service['price_component'],
+      $wrapper_line_item->commerce_unit_price->value(),
+      $included=TRUE,
+      $add_base_price=FALSE
+    );
+  }
+}
+
+/**
+ * Checks if an order has a Free Shipping action.
+ */
+function commerce_promotion_has_free_shipping($order) {
+  $wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $promotions = $wrapper->field_commerce_promotions->value();
+  if ($promotions) {
+    $promotion = commerce_promotion_load($promotions[0]->commerce_promotion_id);
+    return isset($promotion['actions']['free_shipping']);
+  }
+
+  return FALSE;
 }
 
 /**
