@@ -254,6 +254,9 @@ function commerce_promotion_rules_item_form($config, $form_state) {
     }
 
     $form['field']['#default_value'] = $defaults ? $defaults['value'] : '';
+    if ($config['component_name'] == 'order_total') {
+      $form['field']['#default_value'] = intval($form['field']['#default_value']) / 100;
+    }
   }
 
   return array($config['component_name'] => $form);
