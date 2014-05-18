@@ -120,7 +120,7 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
     $this->order_wrapper->commerce_line_items[] = $line_item_wrapper;
   }
 
-  protected function resetPromotionLinePrice($line_item_wrapper, $amount) {
+  public function resetPromotionLinePrice($line_item_wrapper, $amount) {
     // Initialize the line item unit price.
     $line_item_wrapper->commerce_unit_price->amount = 0;
     $line_item_wrapper->commerce_unit_price->currency_code = $amount['currency_code'];
