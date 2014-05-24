@@ -49,6 +49,12 @@ function commerce_promotion_menu() {
     'type' => MENU_CALLBACK,
   );
 
+  $items['admin/commerce/promotions/search/%'] = array(
+    'title' => t('Promotion Search Results'),
+    'page callback' => 'commerce_promotion_list_page',
+    'page arguments' => array(4),
+  ) + $common_settings;
+
   return $items;
 }
 
@@ -467,11 +473,15 @@ function commerce_promotion_generate_code($params) {
   return strtoupper(substr($params['prefix'] . $id . md5($params['seed'] . $id), 0, $length));
 }
 
-function commerce_promotion_get_all($header = array()) {
+function commerce_promotion_get_all($header = array(), $search = '') {
   $select = db_select('commerce_promotion', 'p')->extend('TableSort')->extend('PagerDefault');
   $select
     ->fields('p')
     ->limit(25);
+
+  if (!empty($search)) {
+    $select->condition('name', '%' . $search . '%', 'LIKE');
+  }
 
   if ($header) {
     $select->orderByHeader($header);

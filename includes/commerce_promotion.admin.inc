@@ -544,7 +544,7 @@ function commerce_promotion_batch_create_finished_codes($success, $results, $ope
 /**
  * Page callback: list promotions.
  */
-function commerce_promotion_list_page() {
+function commerce_promotion_list_page($search = '') {
   $header = array(
     array('data' => t('Promotion Id'), 'field' => 'commerce_promotion_id'),
     array('data' => t('Promotion Name'), 'field' => 'name'),
@@ -552,7 +552,7 @@ function commerce_promotion_list_page() {
     array('data' => t('Status'), 'field' => 'status'),
     'Operations',
   );
-  $promotions = commerce_promotion_get_all($header);
+  $promotions = commerce_promotion_get_all($header, $search);
 
   $rows = array();
   $promotion_ids = array();
@@ -569,7 +569,32 @@ function commerce_promotion_list_page() {
     );
   }
 
-  return theme('table', array('header' => $header, 'rows' => $rows)) . theme('pager');
+  $form_state = array();
+  return render(drupal_build_form('commerce_promotion_search_form', $form_state))
+    . theme('table', array('header' => $header, 'rows' => $rows)) . theme('pager');
+}
+
+function commerce_promotion_search_form($form, &$form_state) {
+  $form = array();
+
+  $form['search'] = array(
+    '#prefix' => '<div class="container-inline">',
+    '#title' => '',
+    '#size' => 40,
+    '#type' => 'textfield',
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Search Promotions'),
+    '#suffix' => '</div>',
+  );
+
+  return $form;
+}
+
+function commerce_promotion_search_form_submit($form, &$form_state) {
+  $form_state['redirect'] = 'admin/commerce/promotions/search/' . $form_state['values']['search'];
 }
 
 function commerce_promotion_active_when_text($promotion) {
