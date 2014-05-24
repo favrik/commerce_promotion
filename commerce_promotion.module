@@ -467,12 +467,15 @@ function commerce_promotion_generate_code($params) {
   return strtoupper(substr($params['prefix'] . $id . md5($params['seed'] . $id), 0, $length));
 }
 
-function commerce_promotion_get_all() {
-  $select = db_select('commerce_promotion', 'p')->extend('PagerDefault');
+function commerce_promotion_get_all($header = array()) {
+  $select = db_select('commerce_promotion', 'p')->extend('TableSort')->extend('PagerDefault');
   $select
     ->fields('p')
-    ->limit(25)
-    ->orderBy('commerce_promotion_id', 'ASC');
+    ->limit(25);
+
+  if ($header) {
+    $select->orderByHeader($header);
+  }
 
   return $select->execute();
 }

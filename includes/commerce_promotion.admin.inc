@@ -545,10 +545,14 @@ function commerce_promotion_batch_create_finished_codes($success, $results, $ope
  * Page callback: list promotions.
  */
 function commerce_promotion_list_page() {
-  $promotions = commerce_promotion_get_all();
   $header = array(
-    'Promotion Id', 'Promotion Name', 'Active when', 'Status', 'Operations'
+    array('data' => t('Promotion Id'), 'field' => 'commerce_promotion_id'),
+    array('data' => t('Promotion Name'), 'field' => 'name'),
+    'Active when',
+    array('data' => t('Status'), 'field' => 'status'),
+    'Operations',
   );
+  $promotions = commerce_promotion_get_all($header);
 
   $rows = array();
   $promotion_ids = array();
