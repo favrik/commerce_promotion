@@ -442,7 +442,7 @@ function commerce_promotion_set_date_range_form(&$form, &$form_state, $promotion
     '#title' => t('Start Date'),
     '#states' => $states,
     '#date_year_range' => '-0:+10',
-    '#date_format' => 'Y-m-d H:i',
+    '#date_format' => 'Y-m-d',
     '#default_value' => $promotion['start'],
   );
 
@@ -451,7 +451,7 @@ function commerce_promotion_set_date_range_form(&$form, &$form_state, $promotion
     '#title' => t('End Date'),
     '#states' => $states,
     '#date_year_range' => '-0:+10',
-    '#date_format' => 'Y-m-d H:i',
+    '#date_format' => 'Y-m-d',
     '#default_value' => $promotion['end'],
   );
 }
