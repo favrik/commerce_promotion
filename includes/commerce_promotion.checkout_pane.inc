@@ -83,7 +83,14 @@ function commerce_promotion_pane_checkout_form($form, &$form_state, $checkout_pa
  * AJAX callback: coupon add button.
  */
 function commerce_promotion_add_coupon_callback($form, &$form_state) {
-  return $form['commerce_promotion'];
+  ctools_include('ajax');
+  ctools_add_js('ajax-responder');
+  $path = 'checkout/' . $form_state['order']->order_id . '/review';
+  $commands[] = ctools_ajax_command_redirect($path);
+  // you can also use ctools_ajax_command_reload() –  xurshid29
+  print ajax_render($commands);
+  drupal_exit();
+  //return $form['commerce_promotion'];
 }
 
 /*
