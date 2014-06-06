@@ -570,8 +570,8 @@ function commerce_promotion_list_page($search = '') {
   }
 
   $form_state = array();
-  return render(drupal_build_form('commerce_promotion_search_form', $form_state))
-    . theme('table', array('header' => $header, 'rows' => $rows)) . theme('pager');
+  $built_form = drupal_build_form('commerce_promotion_search_form', $form_state);
+  return render($built_form) . theme('table', array('header' => $header, 'rows' => $rows)) . theme('pager');
 }
 
 function commerce_promotion_search_form($form, &$form_state) {
