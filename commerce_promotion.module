@@ -149,16 +149,27 @@ function commerce_promotion_line_item_title() {
   return t('Fixed amount discount');
 }
 
+function commerce_promotion_module_implements_alter(&$implementations, $hook) {
+  if ($hook == 'commerce_cart_order_refresh') {
+    // Move our implementation to the end of the list. Its job is to clean up
+    // order-coupon references where the coupon's discount no longer exists on
+    // the order.
+    $group = $implementations['commerce_promotion'];
+    unset($implementations['commerce_promotion']);
+    $implementations['commerce_promotion'] = $group;
+  }
+}
+
 /**
  * Implements hook_commerce_cart_order_refresh().
  */
 function commerce_promotion_commerce_cart_order_refresh($wrapper) {
+  // Disabled for new strategy without cart_order_refresh.
+  return;
   $line_items_to_delete = array();
   $cloned_line_items = array();
 
   commerce_promotion_remove_price_components($wrapper->commerce_order_total);
-
-  // A DiscountPercentageAction calculates the discount from the product total.
 
   $line_items_to_delete = array();
   foreach ($wrapper->commerce_line_items as $delta => $wrapper_line_item) {
@@ -276,6 +287,8 @@ function commerce_promotion_remove_code_from_order_callback($promotion_id, $orde
 function commerce_promotion_remove_code_from_order($order, $promotion_id, $save = TRUE) {
   $original_order = clone $order;
   $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+
+  commerce_promotion_remove_price_components($order_wrapper->commerce_order_total);
 
   // Remove the coupons from the order relationship.
   foreach ($order_wrapper->field_commerce_promotions as $delta => $promotion_wrapper) {

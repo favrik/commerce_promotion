@@ -30,9 +30,10 @@ function commerce_promotion_pane_checkout_form($form, &$form_state, $checkout_pa
 
       // Reload the order so it is not out of date.
       $order = commerce_order_load($order->order_id);
+      commerce_promotion_apply_promotion($order);
 
-      // Recalculate discounts.
-      commerce_cart_order_refresh($order);
+      // Disabled for new strategy without cart_order_refresh.
+      //commerce_cart_order_refresh($order);
 
       drupal_set_message(t('Coupon code applied.'));
     } else {
