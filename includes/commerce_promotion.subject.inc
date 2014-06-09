@@ -72,8 +72,8 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
   }
 
   public function savePromotionReference() {
-  	// Note: $delta is always 0.
-  	$this->order->field_commerce_promotions[LANGUAGE_NONE][0]['target_id'] = $this->promotion_data['commerce_promotion_id'];
+    // Note: $delta is always 0.
+    $this->order->field_commerce_promotions[LANGUAGE_NONE][0]['target_id'] = $this->promotion_data['commerce_promotion_id'];
     $this->order_wrapper->field_commerce_promotion_code->set($this->promotion_data['submitted_code']);
     commerce_order_save($this->order);
   }
@@ -276,9 +276,11 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
    */
   public function getPromotionUsageCount() {
     $query = $this->getBaseOrderQuery();
-    $query->fieldCondition('field_commerce_promotions', 'target_id', $this->promotion_data['submitted_code_id']);
+    $query->fieldCondition('field_commerce_promotions', 'target_id', $this->promotion_data['commerce_promotion_id']);
+    $query->fieldCondition('field_commerce_promotion_code', 'value', $this->promotion_data['submitted_code']);
+    $count = $query->count()->execute();
 
-    return $query->count()->execute();
+    return $count;
   }
 
   /**
@@ -289,7 +291,8 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
   public function getPromotionUserCount() {
     $query = $this->getBaseOrderQuery();
     $query
-      ->fieldCondition('field_commerce_promotions', 'target_id', $this->promotion_data['submitted_code_id'])
+      ->fieldCondition('field_commerce_promotions', 'target_id', $this->promotion_data['commerce_promotion_id'])
+      ->fieldCondition('field_commerce_promotion_code', 'value', $this->promotion_data['submitted_code'])
       ->propertyCondition('uid', $this->order->uid);
 
     return $query->count()->execute();
