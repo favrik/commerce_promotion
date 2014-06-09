@@ -286,20 +286,19 @@ function commerce_promotion_remove_code_from_order($order, $promotion_id, $save 
     }
   }
 
-/* This seems to be handled by cart_refresh but not sure if on all situations.
+  $line_item_ids = array();
   foreach ($order_wrapper->commerce_line_items as $delta => $line_wrapper) {
     if ($line_wrapper->getBundle() == 'commerce_promotion') {
-      $line_item = $line_item_wrapper->value();
-      if (isset($line_item->data['commerce_promotion'])) {
-        if ($line_item['data']['commerce_promotion']['commerce_promotion_id'] == $promotion_id) {
-          $order_wrapper->commerce_line_items->offsetUnset()
-        }
-      }
+      $line_item_ids[] = $line_wrapper->line_item_id->value();
+      $order_wrapper->commerce_line_items->offsetUnset($delta);
     }
   }
-*/
+
   if ($original_order <> $order && $save) {
     commerce_order_save($order);
+    if (!empty($line_item_ids)) {
+      commerce_line_item_delete_multiple($line_item_ids);
+    }
   }
 }
 
@@ -597,7 +596,7 @@ function commerce_promotion_apply_code($code, $order) {
   if ($promotion_data) {
     $promotion = commerce_promotion_get_balalaika_promotion($promotion_data);
     $subject = commerce_promotion_get_subject($order, $promotion_data);
-    if ($promotion->isEligible($subject)) {
+    if ($promotion->isEligible($subject) && commerce_promotion_order_has_none($order)) {
       $subject->savePromotionReference();
       $result['success'] = TRUE;
     } else {
@@ -610,6 +609,18 @@ function commerce_promotion_apply_code($code, $order) {
   $result['error'] = empty($code) ? t('Please enter a code.') : t('Your coupon code is not valid.');
 
   return $result;
+}
+
+function commerce_promotion_order_has_none($order) {
+  $order = commerce_order_load($order->order_id);
+  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+  $promotions = $order_wrapper->field_commerce_promotions->value();
+  $code = $order_wrapper->field_commerce_promotion_code->value();
+  if (empty($promotions) && empty($code)) {
+    return TRUE;
+  }
+
+  return FALSE;
 }
 
 function commerce_promotion_apply_promotion($order) {
