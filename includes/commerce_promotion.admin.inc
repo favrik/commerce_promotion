@@ -328,7 +328,13 @@ function commerce_promotion_user_autocomplete($string) {
  * Build the promotion code form.
  */
 function commerce_promotion_set_codes_form(&$form, &$form_state, $promotion) {
+  $promotion_applied = FALSE;
+  if ($promotion['commerce_promotion_id']) {
+    $promotion_applied = commerce_promotion_has_been_applied($promotion['commerce_promotion_id']);
+  }
+
   $form['activators']['code'] = array(
+    '#prefix' => $promotion_applied ? '<div class="messages error">This promotion has been applied at least once, edit at your own risk.</div>' : '',
     '#type' => 'checkbox',
     '#title' => t('Has Promotion Code'),
     '#size' => 20,

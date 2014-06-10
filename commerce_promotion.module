@@ -772,3 +772,14 @@ function commerce_promotion_delete($promotion_id) {
 
   return $deleted;
 }
+
+function commerce_promotion_has_been_applied($promotion_id) {
+  $query = new EntityFieldQuery();
+  $query
+    ->entityCondition('entity_type', 'commerce_order', '=')
+    ->fieldCondition('field_commerce_promotions', 'target_id', $promotion_id);
+
+  $count = $query->count()->execute();
+
+  return $count >= 1 ? TRUE : FALSE;
+}
