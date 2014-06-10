@@ -510,8 +510,9 @@ function commerce_promotion_form_submit(&$form, &$form_state) {
 
   if (isset($values['code']) && $values['code'] && $values['code_type'] == 'simple') {
     drupal_set_message(t('Created promotion with Coupon Code <strong>@code</strong>', array('@code' => $values['simple_code'])));
-    drupal_goto('admin/commerce/promotions');
   }
+
+  drupal_goto('admin/commerce/promotions');
 }
 
 function commerce_promotion_batch_create_codes($params, &$context) {
