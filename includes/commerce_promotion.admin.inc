@@ -552,7 +552,7 @@ function commerce_promotion_batch_create_finished_codes($success, $results, $ope
  */
 function commerce_promotion_list_page($search = '') {
   $header = array(
-    array('data' => t('Promotion Id'), 'field' => 'commerce_promotion_id'),
+    array('data' => t('Promotion Id'), 'field' => 'commerce_promotion_id', 'sort' => 'DESC'),
     array('data' => t('Promotion Name'), 'field' => 'name'),
     'Active when',
     array('data' => t('Status'), 'field' => 'status'),
