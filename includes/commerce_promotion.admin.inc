@@ -347,10 +347,15 @@ function commerce_promotion_set_codes_form(&$form, &$form_state, $promotion) {
 
   $codes = &$form['activators']['code_options'];
 
+  // Show download bulk codes link as needed.
+  $bulk_codes = '';
+  if (isset($promotion['commerce_promotion_id']) && $promotion['commerce_promotion_id'] && $promotion['code_type'] == 'bulk') {
+    $bulk_codes = l('Download Codes', 'admin/commerce/promotions/download-codes/' . $promotion['commerce_promotion_id']) . '<br /><br />';
+  }
   $codes['code_type'] = array(
     '#type' => 'radios',
     '#prefix' => '<div class="container-inline inline-radios">',
-    '#suffix' => '</div><br />',
+    '#suffix' => '</div><br />' . $bulk_codes,
     '#options' => array('simple' => 'Code', 'bulk' => 'Bulk Code'),
     '#default_value' => $promotion['code_type'],
   );
@@ -564,7 +569,6 @@ function commerce_promotion_list_page($search = '') {
   $promotion_ids = array();
   foreach ($promotions as $promotion) {
     $promotion_ids[] = $promotion->commerce_promotion_id;
-
     $rows[] = array(
       $promotion->commerce_promotion_id,
       $promotion->name,
@@ -608,7 +612,7 @@ function commerce_promotion_active_when_text($promotion) {
   $code = commerce_promotion_load_one_code($promotion->commerce_promotion_id);
   if ($code) {
     if ($code['bulk']) {
-      $text = 'A Bulk Promotion Code is entered';
+      $text = 'A Bulk Promotion Code is entered.  '  . l('Download Codes', 'admin/commerce/promotions/download-codes/' . $promotion->commerce_promotion_id);
     } else {
       $text = 'Promotion Code <strong>' . $code['code'] . '</strong> is entered';
     }
@@ -688,3 +692,16 @@ function commerce_promotion_delete_form_submit($form, &$form_state) {
   }
   $form_state['redirect'] = 'admin/commerce/promotions';
 }
+
+/**
+ * Page callback: download bulk coupon codes.
+ */
+function commerce_promotion_download_codes($promotion_id) {
+  $promotion = commerce_promotion_load($promotion_id);
+
+  if ($promotion['code_type'] == 'bulk') {
+    $result = commerce_promotion_load_codes($promotion_id);
+    ritual_array_to_csv_download($result->fetchAll(PDO::FETCH_ASSOC));
+  }
+}
+

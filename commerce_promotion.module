@@ -22,6 +22,12 @@ function commerce_promotion_menu() {
     'page arguments' => array(),
   ) + $common_settings;
 
+  $items['admin/commerce/promotions/download-codes/%'] = array(
+    'title' => 'Download Codes',
+    'page callback' => 'commerce_promotion_download_codes',
+    'page arguments' => array(4),
+  ) + $common_settings;
+
   $items['admin/commerce/promotions/edit/%'] = array(
     'title' => 'Edit Promotion',
     'page callback' => 'commerce_promotion_get_form',
@@ -509,6 +515,16 @@ function commerce_promotion_load_one_code($promotion_id) {
   $select->limit(1);
 
   return $select->execute()->fetchAssoc();
+}
+
+function commerce_promotion_load_codes($promotion_id) {
+  return db_query('
+    SELECT code
+    FROM {commerce_promotion_codes}
+    WHERE commerce_promotion_id = :id
+    ',
+    array(':id' => $promotion_id)
+  );
 }
 
 function commerce_promotion_delete_all() {
