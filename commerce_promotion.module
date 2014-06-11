@@ -170,29 +170,33 @@ function commerce_promotion_module_implements_alter(&$implementations, $hook) {
  * Implements hook_commerce_cart_order_refresh().
  */
 function commerce_promotion_commerce_cart_order_refresh($wrapper) {
-  // Disabled for new strategy without cart_order_refresh.
-  return;
-  $line_items_to_delete = array();
-  $cloned_line_items = array();
+  $ran = &drupal_static(__FUNCTION__);
 
-  commerce_promotion_remove_price_components($wrapper->commerce_order_total);
+  // Run only once per request.
+  if (!isset($ran)) {
+    $line_items_to_delete = array();
+    $cloned_line_items = array();
 
-  $line_items_to_delete = array();
-  foreach ($wrapper->commerce_line_items as $delta => $wrapper_line_item) {
-    if ($wrapper_line_item->getBundle() == 'commerce_promotion') {
-      $line_items_to_delete[] = $wrapper_line_item->getIdentifier();
-      $wrapper->commerce_line_items->offsetUnset($delta);
+    commerce_promotion_remove_price_components($wrapper->commerce_order_total);
+
+    $line_items_to_delete = array();
+    foreach ($wrapper->commerce_line_items as $delta => $wrapper_line_item) {
+      if ($wrapper_line_item->getBundle() == 'commerce_promotion') {
+        $line_items_to_delete[] = $wrapper_line_item->getIdentifier();
+        $wrapper->commerce_line_items->offsetUnset($delta);
+      }
     }
-  }
 
-  // Delete line items.
-  if ($line_items_to_delete) {
-    commerce_line_item_delete_multiple($line_items_to_delete);
-    commerce_order_save($wrapper->value());
-  }
+    // Delete line items.
+    if ($line_items_to_delete) {
+      commerce_line_item_delete_multiple($line_items_to_delete);
+    }
 
-  // Re-add all applicable promotion price components and/or line items.
-  commerce_promotion_apply_promotion($wrapper->value());
+    // Re-add all applicable promotion price components and/or line items.
+    commerce_promotion_apply_promotion($wrapper);
+
+    $ran = 'cart_order_refresh was run';
+  }
 }
 
 /**
@@ -626,7 +630,7 @@ function commerce_promotion_apply_code($code, $order) {
     $promotion = commerce_promotion_get_balalaika_promotion($promotion_data);
     $subject = commerce_promotion_get_subject($order, $promotion_data);
     if ($promotion->isEligible($subject) && commerce_promotion_order_has_none($order)) {
-      $subject->savePromotionReference();
+      $subject->setPromotionReference($order);
       $result['success'] = TRUE;
     } else {
       $result['error'] = t('Unable to redeem coupon.');
@@ -652,10 +656,14 @@ function commerce_promotion_order_has_none($order) {
   return FALSE;
 }
 
-function commerce_promotion_apply_promotion($order) {
-  $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+function commerce_promotion_apply_promotion($order_wrapper) {
   $code = $order_wrapper->field_commerce_promotion_code->value();
+  if (empty($code) || is_null($code)) {
+    return;
+  }
+
   $promotion_id = FALSE;
+
   // Only take the first promotion, currently orders can only have 1 promotion applied.
   $promotions = $order_wrapper->field_commerce_promotions->value();
   if (isset($promotions[0])) {
@@ -670,7 +678,7 @@ function commerce_promotion_apply_promotion($order) {
 
   if (isset($promotion_data)) {
     $promotion = commerce_promotion_get_balalaika_promotion($promotion_data);
-    $subject = commerce_promotion_get_subject($order, $promotion_data);
+    $subject = commerce_promotion_get_subject($order_wrapper->value(), $promotion_data);
     $promotion->apply($subject);
   }
 }

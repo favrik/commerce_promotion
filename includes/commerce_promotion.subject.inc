@@ -68,14 +68,23 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
     }
 
     commerce_order_calculate_total($this->order);
-    commerce_order_save($this->order);
   }
 
+  /**
+   * Usually called on the commerce_promotion checkout pane, NOT within the cart_order_refresh flow.
+   * That's why here we save the order.
+   */
   public function savePromotionReference() {
     // Note: $delta is always 0.
     $this->order->field_commerce_promotions[LANGUAGE_NONE][0]['target_id'] = $this->promotion_data['commerce_promotion_id'];
     $this->order_wrapper->field_commerce_promotion_code->set($this->promotion_data['submitted_code']);
     commerce_order_save($this->order);
+  }
+
+  public function setPromotionReference($order) {
+    $order->field_commerce_promotions[LANGUAGE_NONE][0]['target_id'] = $this->promotion_data['commerce_promotion_id'];
+    $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+    $order_wrapper->field_commerce_promotion_code->set($this->promotion_data['submitted_code']);
   }
 
   protected function setExistingPromotionLineItem($amount) {
@@ -227,7 +236,7 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
     if (isset($customer_shipping->commerce_customer_address)) {
       return $customer_shipping->commerce_customer_address->postal_code->value();
     }
-  
+
     return 0;
   }
 
