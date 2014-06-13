@@ -710,7 +710,7 @@ function commerce_promotion_get_subject($order, $promotion_data) {
 function commerce_promotion_view_promotion($order) {
   $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
   $header = array(
-    t('Code'), array('data' => t('Name'), 'colspan' => 2)
+    t('Code'), array('data' => t(''))
   );
 
   $promotions = $order_wrapper->field_commerce_promotions->value();
@@ -720,7 +720,6 @@ function commerce_promotion_view_promotion($order) {
     $rows = array();
     $rows[] = array(
       $order_wrapper->field_commerce_promotion_code->value(),
-      commerce_promotion_display_action($promotion_id),
       commerce_promotion_get_remove_link($order->order_id, $promotion_id),
     );
 
