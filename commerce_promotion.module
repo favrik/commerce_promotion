@@ -179,20 +179,7 @@ function commerce_promotion_commerce_cart_order_refresh($wrapper) {
 
     commerce_promotion_remove_price_components($wrapper->commerce_order_total);
 
-    $line_items_to_delete = array();
-    foreach ($wrapper->commerce_line_items as $delta => $wrapper_line_item) {
-      if ($wrapper_line_item->getBundle() == 'commerce_promotion') {
-        $line_items_to_delete[] = $wrapper_line_item->getIdentifier();
-        $wrapper->commerce_line_items->offsetUnset($delta);
-      }
-    }
-
-    // Delete line items.
-    if ($line_items_to_delete) {
-      commerce_line_item_delete_multiple($line_items_to_delete);
-    }
-
-    // Re-add all applicable promotion price components and/or line items.
+    // Add or Update all applicable promotion price components and/or line items.
     commerce_promotion_apply_promotion($wrapper);
 
     $ran = 'cart_order_refresh was run';
