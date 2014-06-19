@@ -681,7 +681,7 @@ function commerce_promotion_get_balalaika_promotion($promotion_data) {
 function commerce_promotion_prepare_data(&$promotion_data) {
   foreach ($promotion_data['rules'] as $index => $rule) {
     if (in_array($rule['component_name'], array('zipcode_is', 'user_is'))) {
-      $value = explode($name == 'zipcode_is' ? ' ' : ',', $promotion_data['rules'][$index]['value']);
+      $value = explode($rule['component_name'] == 'zipcode_is' ? ' ' : ',', $promotion_data['rules'][$index]['value']);
       if ($value !== FALSE) {
         $value = array_map('trim', $value);
       } else {
