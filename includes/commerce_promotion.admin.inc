@@ -113,13 +113,15 @@ function commerce_promotion_multiple_items_form(&$form, &$form_state, $base_name
     $components = $promotion[$base_name];
     $form_state[$base_name . '_count'] = 0;
     $counter = &$form_state[$base_name . '_count'];
-    foreach ($components as $component_name => $config) {
+    foreach ($components as $index => $config) {
       $rule_form_container = array(
         '#prefix' => '<div class="container-inline promotion-property">',
         '#suffix' => '</div>',
       );
 
+      $component_name = $config['component_name'];
       $component_form = commerce_promotion_get_component_form($base_name, $component_name, $form_state);
+
       foreach ($component_form as $name => $field) {
         $rule_form_container[$name] = $field;
       }
@@ -182,12 +184,17 @@ function commerce_promotion_get_component_options($config) {
 }
 
 /**
- * Component can be rules or actions.
+ * In this form context, components can be rules or actions.
+ *
+ * @param $base_name - The component base name: actions or rules.
+ * @param $component_name - The specific rule or action name: discount_fixed_amount, order_total, etc.
+ * @param $form_state - The form state where the component count and some config is retrevied.
  */
 function commerce_promotion_get_component_form($base_name, $component_name, $form_state) {
   $config = $form_state[$base_name . '_config'];
   $component_config = $config[$component_name];
   $component_config['component_name'] = $component_name;
+  $component_config['base_name'] = $base_name;
 
   $form_callback = 'commerce_promotion_' . $base_name . '_item_form';
   $form = $form_callback($component_config, $form_state);
@@ -211,15 +218,13 @@ function commerce_promotion_get_component_form($base_name, $component_name, $for
   return $form;
 }
 
-/**
- * FIXME refactor item forms into one set of code to be more DRY.
- */
 function commerce_promotion_rules_item_form($config, $form_state) {
   $promotion = $form_state['promotion'];
+  $count = $form_state[$config['base_name'] . '_count'];
 
   $defaults = array();
-  if (isset($promotion['rules'][$config['component_name']])) {
-    $defaults = $promotion['rules'][$config['component_name']];
+  if (isset($promotion['rules'][$count])) {
+    $defaults = $promotion['rules'][$count];
   }
 
   $form['operator'] = array(
@@ -264,10 +269,11 @@ function commerce_promotion_rules_item_form($config, $form_state) {
 
 function commerce_promotion_actions_item_form($config, $form_state) {
   $promotion = $form_state['promotion'];
+  $count = $form_state[$config['base_name'] . '_count'];
 
   $default_value = '';
-  if (isset($promotion['actions'][$config['component_name']])) {
-    $defaults = $promotion['actions'][$config['component_name']];
+  if (isset($promotion['actions'][$count])) {
+    $defaults = $promotion['actions'][$count];
     $default_value = $config['component_name'] == 'discount_fixed_amount'
                    ? $defaults['argument'] / 100 : $defaults['argument'];
   }
@@ -479,6 +485,7 @@ function commerce_promotion_form_validate($form, &$form_state) {
  */
 function commerce_promotion_form_submit(&$form, &$form_state) {
   $values = $form_state['values'];
+
   if (isset($form_state['promotion']['commerce_promotion_id'])) {
     $values['commerce_promotion_id'] = $form_state['promotion']['commerce_promotion_id'];
   }

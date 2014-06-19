@@ -378,10 +378,12 @@ function commerce_promotion_save(array $values) {
 
   $promotion_id = $promotion['commerce_promotion_id'];
 
+  db_delete('commerce_promotion_rules')->condition('commerce_promotion_id', $promotion_id)->execute();
   if (!empty($values['rules_values'])) {
     commerce_promotion_save_rules($promotion_id, $values['rules_values']);
   }
 
+  db_delete('commerce_promotion_actions')->condition('commerce_promotion_id', $promotion_id)->execute();
   if (!empty($values['actions_values'])) {
     commerce_promotion_save_actions($promotion_id, $values['actions_values']);
   }
@@ -397,8 +399,6 @@ function commerce_promotion_save(array $values) {
  * Save/Update rules using delete -> re-insert.
  */
 function commerce_promotion_save_rules($promotion_id, $rules) {
-  db_delete('commerce_promotion_rules')->condition('commerce_promotion_id', $promotion_id)->execute();
-
   $row['commerce_promotion_id'] = $promotion_id;
 
   foreach ($rules as $rule) {
@@ -421,8 +421,6 @@ function commerce_promotion_save_rule($rule) {
  * Save/Update actions using delete -> re-insert.
  */
 function commerce_promotion_save_actions($promotion_id, $actions) {
-  db_delete('commerce_promotion_actions')->condition('commerce_promotion_id', $promotion_id)->execute();
-
   $row['commerce_promotion_id'] = $promotion_id;
 
   foreach ($actions as $action) {
@@ -561,7 +559,9 @@ function commerce_promotion_load_rules($promotion_id) {
 
   $rules = array();
   foreach ($result as $rule) {
-    $rules[$rule->rule] = (array) $rule;
+    $rule = (array) $rule;
+    $rule['component_name'] = $rule['rule'];
+    $rules[] = $rule;
   }
 
   return $rules;
@@ -575,7 +575,9 @@ function commerce_promotion_load_actions($promotion_id) {
 
   $actions = array();
   foreach ($result as $action) {
-    $actions[$action->action] = (array) $action;
+    $action = (array) $action;
+    $action['component_name'] = $action['action'];
+    $actions[] = $action;
   }
 
   return $actions;
@@ -677,11 +679,15 @@ function commerce_promotion_get_balalaika_promotion($promotion_data) {
 }
 
 function commerce_promotion_prepare_data(&$promotion_data) {
-  foreach ($promotion_data['rules'] as $name => $rule) {
-    if (in_array($name, array('zipcode_is', 'user_is'))) {
-      $value = explode($name == 'zipcode_is' ? ' ' : ',', $promotion_data['rules'][$name]['value']);
-      $value = array_map('trim', $value);
-      $promotion_data['rules'][$name]['value'] = $value;
+  foreach ($promotion_data['rules'] as $index => $rule) {
+    if (in_array($rule['component_name'], array('zipcode_is', 'user_is'))) {
+      $value = explode($name == 'zipcode_is' ? ' ' : ',', $promotion_data['rules'][$index]['value']);
+      if ($value !== FALSE) {
+        $value = array_map('trim', $value);
+      } else {
+        $value = trim($promotion_data['rules'][$index]['value']);
+      }
+      $promotion_data['rules'][$index]['value'] = is_array($value) ? $value : array($value);
     }
   }
 }
