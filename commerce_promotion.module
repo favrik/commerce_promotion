@@ -262,7 +262,11 @@ function commerce_promotion_has_free_shipping($order) {
   $promotions = $wrapper->field_commerce_promotions->value();
   if ($promotions) {
     $promotion = commerce_promotion_load($promotions[0]->commerce_promotion_id);
-    return isset($promotion['actions']['free_shipping']);
+    foreach ($promotion['actions'] as $index => $action) {
+      if ($action['component_name'] == 'free_shipping') {
+        return TRUE;
+      }
+    }
   }
 
   return FALSE;
