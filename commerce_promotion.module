@@ -95,7 +95,7 @@ function commerce_promotion_label($entity, $entity_type) {
  * Access callback for commerce_promotion entities.
  */
 function commerce_promotion_access($op, $entity, $account, $entity_type) {
-  return user_access('administer commerce promotions', $account);
+  return user_access('administer site configuration', $account);
 }
 
 /**
