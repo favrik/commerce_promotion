@@ -577,24 +577,37 @@ function commerce_promotion_list_page($search = '') {
     'Operations',
   );
   $promotions = commerce_promotion_get_all($header, $search);
+  $promotion_by_code = commerce_promotion_find_by_code($search);
 
   $rows = array();
   $promotion_ids = array();
   foreach ($promotions as $promotion) {
     $promotion_ids[] = $promotion->commerce_promotion_id;
-    $rows[] = array(
-      $promotion->commerce_promotion_id,
-      $promotion->name,
-      commerce_promotion_active_when_text($promotion),
-      $promotion->status ? t('Enabled') : t('Disabled'),
-      l('Edit', 'admin/commerce/promotions/edit/' . $promotion->commerce_promotion_id) . ' | '
-      . l('Delete', 'admin/commerce/promotions/delete/' . $promotion->commerce_promotion_id)
-    );
+    commerce_promotion_set_row($rows, $promotion);
+  }
+
+  if ($promotion_by_code) {
+    commerce_promotion_set_row($rows, $promotion_by_code);
   }
 
   $form_state = array();
   $built_form = drupal_build_form('commerce_promotion_search_form', $form_state);
   return render($built_form) . theme('table', array('header' => $header, 'rows' => $rows)) . theme('pager');
+}
+
+function commerce_promotion_set_row(&$rows, $promotion) {
+  if (is_array($promotion)) {
+    $promotion = (object) $promotion;
+  }
+
+  $rows[] = array(
+    $promotion->commerce_promotion_id,
+    $promotion->name,
+    commerce_promotion_active_when_text($promotion),
+    $promotion->status ? t('Enabled') : t('Disabled'),
+    l('Edit', 'admin/commerce/promotions/edit/' . $promotion->commerce_promotion_id) . ' | '
+    . l('Delete', 'admin/commerce/promotions/delete/' . $promotion->commerce_promotion_id)
+  );
 }
 
 function commerce_promotion_search_form($form, &$form_state) {
