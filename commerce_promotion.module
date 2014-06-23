@@ -168,22 +168,17 @@ function commerce_promotion_module_implements_alter(&$implementations, $hook) {
 
 /**
  * Implements hook_commerce_cart_order_refresh().
+ *
+ * @param $wrapper - The order entity wrapper.
  */
 function commerce_promotion_commerce_cart_order_refresh($wrapper) {
-  $ran = &drupal_static(__FUNCTION__);
+  $line_items_to_delete = array();
+  $cloned_line_items = array();
 
-  // Run only once per request.
-  if (!isset($ran)) {
-    $line_items_to_delete = array();
-    $cloned_line_items = array();
+  commerce_promotion_remove_price_components($wrapper->commerce_order_total);
 
-    commerce_promotion_remove_price_components($wrapper->commerce_order_total);
-
-    // Add or Update all applicable promotion price components and/or line items.
-    commerce_promotion_apply_promotion($wrapper);
-
-    $ran = 'cart_order_refresh was run';
-  }
+  // Add or Update all applicable promotion price components and/or line items.
+  commerce_promotion_apply_promotion($wrapper);
 }
 
 /**
