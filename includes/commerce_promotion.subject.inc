@@ -205,7 +205,11 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
    * Enforced by rule event from commerce_shipping.  Here we just add the discount to the order.
    */
   public function setFreeShipping() {
-
+    // This is really a workaround because the commerce_cart_order_refresh event does not 
+    // save the order unless the original and modified order are different, or the line items
+    // have changed.  When a promotion only has the Free shipping action enabled, there are no
+    // line items changed.
+    $this->order->has_free_shipping = TRUE;
   }
 
   /**
