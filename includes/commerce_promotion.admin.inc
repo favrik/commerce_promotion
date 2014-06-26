@@ -496,8 +496,8 @@ function commerce_promotion_form_submit(&$form, &$form_state) {
   if (isset($values['code']) && $values['code'] && $values['code_type'] == 'bulk') {
     // Batch create promotion codes.
 
-    // If we are editing a promotion, skip this for now.
-    if (isset($values['commerce_promotion_id'])) {
+    // If promotion already has codes, skip this for now.
+    if (commerce_promotion_load_one_code($promotion_id)) {
       return;
     }
 
