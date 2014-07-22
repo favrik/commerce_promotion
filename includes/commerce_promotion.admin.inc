@@ -491,7 +491,18 @@ function commerce_promotion_form_submit(&$form, &$form_state) {
   }
 
   // FYI: This already saves a single promotion code.
-  $promotion_id = commerce_promotion_save($values);
+  try {
+    $promotion_id = commerce_promotion_save($values);
+  } catch (Exception $e) {
+
+    if ($e->getCode() == 23000) {
+      drupal_set_message('Duplicate Coupon Code: ' . $values['simple_code'], 'error');
+      return;
+
+    } else {
+      throw $e;
+    }
+  }
 
   if (isset($values['code']) && $values['code'] && $values['code_type'] == 'bulk') {
     // Batch create promotion codes.
@@ -557,7 +568,7 @@ function commerce_promotion_batch_create_finished_codes($success, $results, $ope
   else {
     // Report the last error.
     $error_operation = reset($operations);
-    $message = t('An error occurred while processing %error_operation with arguments: @arguments', 
+    $message = t('An error occurred while processing %error_operation with arguments: @arguments',
       array('%error_operation' => $error_operation[0], '@arguments' => print_r($error_operation[1], TRUE)));
 
     drupal_set_message($message, 'error');
