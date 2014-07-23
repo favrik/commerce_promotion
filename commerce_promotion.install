@@ -35,6 +35,13 @@ function commerce_promotion_schema() {
         'not null' => FALSE,
         'default' => NULL,
       ),
+      'display_message' => array(
+        'description' => 'Extra promotion message to show along side the confirmation message.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
     ),
     'primary key' => array('commerce_promotion_id'),
   );
@@ -182,4 +189,21 @@ function commerce_promotion_schema() {
  */
 function commerce_promotion_enable() {
   commerce_line_item_configure_line_item_fields(array('commerce_promotion'));
+}
+
+/**
+ * Add extra message to confirmation message from coupon code added to order.
+ */
+function commerce_promotion_update_7100(&$sandbox) {
+  $display_message_spec = array(
+    'description' => 'Extra promotion message to show along side the confirmation message.',
+    'type' => 'varchar',
+    'length' => 255,
+    'not null' => TRUE,
+    'default' => '',
+  );
+
+  db_add_field('commerce_promotion', 'display_message', $display_message_spec);
+
+  return t('Added display_message field to promotions table');
 }

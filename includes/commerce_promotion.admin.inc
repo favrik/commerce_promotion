@@ -28,6 +28,13 @@ function commerce_promotion_form($form, &$form_state, $promotion) {
     '#required' => TRUE,
   );
 
+  $form['display_message'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Display Messsage'),
+    '#description' => t('Shown to customers on the coupon applied confirmation message.'),
+    '#default_value' => $promotion['display_message'],
+  );
+
   $form['status'] = array(
     '#type' => 'radios',
     '#title' => t('Status'),
@@ -538,7 +545,12 @@ function commerce_promotion_form_submit(&$form, &$form_state) {
   }
 
   if (isset($values['code']) && $values['code'] && $values['code_type'] == 'simple') {
-    drupal_set_message(t('Created promotion with Coupon Code <strong>@code</strong>', array('@code' => $values['simple_code'])));
+    drupal_set_message(t('Created promotion with Coupon Code <strong><a href="@link">@code</a></strong>',
+      array(
+        '@code' => $values['simple_code'],
+        '@link' => url('admin/commerce/promotions/edit/' . $promotion_id),
+      ))
+    );
     drupal_goto('admin/commerce/promotions');
   }
 }

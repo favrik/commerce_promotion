@@ -340,6 +340,7 @@ function commerce_promotion_defaults(array $values = array()) {
   $values += array(
     'commerce_promotion_id' => NULL,
     'name' => '',
+    'display_message' => '',
     'status' => TRUE,
     'start' => NULL,
     'end' => NULL,
@@ -363,7 +364,7 @@ function commerce_promotion_save(array $values) {
   $values = commerce_promotion_defaults($values);
 
   $primary_key = is_null($values['commerce_promotion_id']) ? array() : 'commerce_promotion_id';
-  $promotion_keys = array('commerce_promotion_id', 'name', 'status');
+  $promotion_keys = array('commerce_promotion_id', 'name', 'display_message', 'status');
 
   if (isset($values['date']) && $values['date']) {
     array_push($promotion_keys, 'start', 'end');
