@@ -222,6 +222,9 @@ function commerce_promotion_commerce_price_formatted_components_alter(&$componen
         continue;
       }
       $components[$component['name']]['title'] = 'Coupon Code: ' . $component['price']['data']['submitted_code'];
+      if (!empty($component['price']['data']['promotion_display_message'])) {
+        $components[$component['name']]['title'] .= '. ' . $component['price']['data']['promotion_display_message'];
+      }
     }
   }
 }
@@ -709,10 +712,11 @@ function commerce_promotion_view_promotion($order) {
   $promotions = $order_wrapper->field_commerce_promotions->value();
   if ($promotions) {
     $promotion_id = $promotions[0]->commerce_promotion_id;
+    $display_message = empty($promotions[0]->display_message) ? '' : ': ' . $promotions[0]->display_message;
 
     $rows = array();
     $rows[] = array(
-      $order_wrapper->field_commerce_promotion_code->value(),
+      $order_wrapper->field_commerce_promotion_code->value() . $display_message,
       commerce_promotion_get_remove_link($order->order_id, $promotion_id),
     );
 

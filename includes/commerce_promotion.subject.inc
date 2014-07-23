@@ -164,6 +164,7 @@ class CommercePromotionSubject implements PromotionSubjectInterface {
         'promotion_id' => $this->promotion_data['commerce_promotion_id'],
         'promotion_name' => $this->promotion_data['name'],
         'submitted_code' => $this->promotion_data['submitted_code'],
+        'promotion_display_message' => $this->promotion_data['display_message'],
       ),
     );
 
