@@ -678,6 +678,7 @@ function commerce_promotion_apply_promotion($order_wrapper) {
 
     // Workaround for empty actions.
     if (!$promotion->hasActions()) {
+      // Add a custom order property so the order is marked as updated/changed.
       $order = $order_wrapper->value();
       $order->has_promotion_with_empty_actions = TRUE;
     }
