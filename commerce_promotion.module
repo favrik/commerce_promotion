@@ -277,7 +277,24 @@ function commerce_promotion_has_free_shipping($order) {
  * Page callback: delete a promotion from an order.
  */
 function commerce_promotion_remove_code_from_order_callback($promotion_id, $order) {
-  if (!isset($_GET['token']) || !drupal_valid_token($_GET['token'], 'commerce_coupon_remove_checkout:' . $promotion_id . ':' . $order->order_id) || !commerce_checkout_access($order)) {
+  $token_part = 'commerce_coupon_remove_checkout:' . $promotion_id . ':' . $order->order_id;
+
+  if (!isset($_GET['token']) || !drupal_valid_token($_GET['token'], $token_part) || !commerce_checkout_access($order)) {
+    watchdog('commerce_promotion', 'General invalid token part: ' . $token_part);
+
+    // Log corresponding error message.
+    if (!isset($_GET['token'])) {
+      watchdog('commerce_promotion', t('token was not set in $_GET'));
+    }
+
+    if (!drupal_valid_token($_GET['token'], $token_part)) {
+      watchdog('commerce_promotion', 'Invalid token submitted when removing code');
+    }
+
+    if (!commerce_checkout_access($order)) {
+      watchdog('commerce_promotion', 'access denied in commerce_checkout_access');
+    }
+
     return MENU_ACCESS_DENIED;
   }
 
